@@ -17,6 +17,7 @@ class ProductModel {
   final String category;
   final List<String> tags;
   final String createdBy;
+  final String? source;
 
   // ✅ Image fields
   final String logoUrl;
@@ -35,6 +36,7 @@ class ProductModel {
   final String status; // draft, published, rejected
 
   ProductModel({
+    required this.source,
     required this.productId,
     required this.name,
     required this.tagline,
@@ -58,6 +60,7 @@ class ProductModel {
     final data = (doc.data() as Map<String, dynamic>?) ?? const {};
 
     return ProductModel(
+      source: data['source'] ?? "",
       productId: doc.id,
       name: (data['name'] ?? '') as String,
       tagline: (data['tagline'] ?? '') as String,
@@ -126,6 +129,7 @@ class ProductModel {
     int? commentCount,
     int? views,
     String? status,
+    String? source,
   }) {
     return ProductModel(
       productId: productId ?? this.productId,
@@ -144,6 +148,7 @@ class ProductModel {
       commentCount: commentCount ?? this.commentCount,
       views: views ?? this.views,
       status: status ?? this.status,
+      source: source ?? this.source,
     );
   }
 }

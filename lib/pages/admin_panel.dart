@@ -378,18 +378,98 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         return Column(
           children: docs.map((d) {
             final data = d.data() as Map<String, dynamic>;
+            final productId = d.id;
+
             return Card(
-              child: ListTile(
-                leading: data['coverUrl'] != null
-                    ? Image.network(
-                        data['coverUrl'],
-                        width: 60,
-                        height: 60,
-                        fit: BoxFit.cover,
-                      )
-                    : const Icon(Icons.image),
-                title: Text(data['name']),
-                subtitle: Text(data['tagline']),
+              margin: const EdgeInsets.only(bottom: 12),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ListTile(
+                      leading:
+                          (data['coverUrl'] != null &&
+                              data['coverUrl'].toString().trim().isNotEmpty)
+                          ? Image.network(
+                              data['coverUrl'],
+                              width: 60,
+                              height: 60,
+                              fit: BoxFit.cover,
+                              errorBuilder: (_, __, ___) =>
+                                  const Icon(Icons.image),
+                            )
+                          : const Icon(Icons.image),
+
+                      title: Text(data['name']),
+                      subtitle: Text(data['tagline']),
+                    ),
+
+                    // ---------------------------
+                    // ADMIN ACTION BUTTONS
+                    // ---------------------------
+                    if (status == "pending")
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green,
+                              ),
+                              onPressed: () {
+                                FirebaseService.productsRef
+                                    .doc(productId)
+                                    .update({
+                                      "status": "published",
+                                      "updatedAt": FieldValue.serverTimestamp(),
+                                    });
+                              },
+                              child: const Text("ACCEPT"),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                              ),
+                              onPressed: () {
+                                FirebaseService.productsRef
+                                    .doc(productId)
+                                    .update({
+                                      "status": "rejected",
+                                      "updatedAt": FieldValue.serverTimestamp(),
+                                    });
+                              },
+                              child: const Text("REJECT"),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                    if (status == "rejected")
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green,
+                              ),
+                              onPressed: () {
+                                FirebaseService.productsRef
+                                    .doc(productId)
+                                    .update({
+                                      "status": "published",
+                                      "updatedAt": FieldValue.serverTimestamp(),
+                                    });
+                              },
+                              child: const Text("PUBLISH AGAIN"),
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
               ),
             );
           }).toList(),

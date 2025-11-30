@@ -36,7 +36,6 @@ dependencies:
   firebase_core: ^4.0.0
   firebase_storage: ^13.0.0
   fl_chart: ^0.68.0
-
   flutter:
     sdk: flutter
   flutter_image_compress: ^2.4.0
@@ -44,6 +43,7 @@ dependencies:
   google_fonts: ^6.3.0
   google_mobile_ads: ^6.0.0
   google_sign_in: ^6.1.4
+  hero_animation: ^1.1.4
   image: ^4.5.4
   image_picker: ^1.2.0
   intl: ^0.20.2

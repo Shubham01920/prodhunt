@@ -20,7 +20,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
-  late final TabController _tab = TabController(length: 3, vsync: this);
+  late final TabController _tab = TabController(length: 4, vsync: this);
 
   @override
   void dispose() {
@@ -98,6 +98,7 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
                   Tab(text: 'Trending'),
                   Tab(text: 'Recommendations'),
                   Tab(text: 'All Products'),
+                  Tab(text: 'AI'),
                 ],
               ),
             ),
@@ -105,10 +106,11 @@ class _HomePageState extends State<HomePage> with TickerProviderStateMixin {
         ),
         body: TabBarView(
           controller: _tab,
-          children: const [
-            _TrendingTab(),
-            _RecommendationsTab(),
-            _AllProductsTab(),
+          children: [
+            const _TrendingTab(),
+            const _RecommendationsTab(),
+            const _AllProductsTab(),
+            const _AiProductsTab(),
           ],
         ),
         // 👇 Banner ad sabse neeche
@@ -195,39 +197,84 @@ class _RecommendationsTabState extends State<_RecommendationsTab>
   Widget build(BuildContext context) {
     super.build(context);
 
-    final query = FirebaseService.productsRef
+    final userQuery = FirebaseService.productsRef
         .where('status', isEqualTo: 'published')
         .orderBy('createdAt', descending: true)
-        .limit(30);
+        .limit(20);
+
+    final aiQuery = FirebaseService.firestore
+        .collection('aiProducts')
+        .orderBy('createdAt', descending: true)
+        .limit(10);
 
     return StreamBuilder<QuerySnapshot>(
-      stream: query.snapshots(includeMetadataChanges: true),
-      builder: (context, snap) {
-        final isLoading =
-            snap.connectionState == ConnectionState.waiting ||
-            !snap.hasData ||
-            (snap.hasData &&
-                snap.data!.docs.isEmpty &&
-                snap.data!.metadata.isFromCache);
-
-        if (isLoading) return _skeletonList(context);
-
-        if (snap.hasError) {
-          return _errorBox(context, 'Failed to load recommendations');
-        }
-        if (snap.data!.docs.isEmpty) {
-          return const Center(child: Text('No recommendations yet'));
+      stream: userQuery.snapshots(includeMetadataChanges: true),
+      builder: (context, userSnap) {
+        if (!userSnap.hasData) {
+          return _skeletonList(context);
         }
 
-        final items = snap.data!.docs
-            .map((d) => ProductModel.fromFirestore(d))
-            .map(ProductUIMapper.fromProductModel)
-            .toList();
+        return StreamBuilder<QuerySnapshot>(
+          stream: aiQuery.snapshots(includeMetadataChanges: true),
+          builder: (context, aiSnap) {
+            final List<ProductUI> list = [];
 
-        return _cardsList(
-          items,
-          onRefresh: () async {
-            await query.get(const GetOptions(source: Source.server));
+            // User Products
+            if (userSnap.hasData) {
+              list.addAll(
+                userSnap.data!.docs
+                    .map((d) => ProductModel.fromFirestore(d))
+                    .map(ProductUIMapper.fromProductModel)
+                    .toList(),
+              );
+            }
+
+            // AI Products
+            // AI Products
+            if (aiSnap.hasData) {
+              list.addAll(
+                aiSnap.data!.docs.map((d) {
+                  final data = d.data() as Map<String, dynamic>;
+
+                  return ProductUI(
+                    id: d.id,
+                    name: data['name'] ?? "AI Product",
+
+                    // ✅ YE LINE ADD KARO
+                    tagline: data['tagline'] ?? "Futuristic Tech",
+
+                    category: "AI Generated",
+                    tags: const [],
+
+                    coverUrl: data['image'] ?? "",
+                    creatorId: "",
+
+                    views: 0,
+                    upvotes: 0,
+                    comments: 0,
+                    shares: 0,
+                    saves: 0,
+
+                    timeAgo: "Just now",
+
+                    isAI: true,
+                    onMorePressed: () {},
+                  );
+                }).toList(),
+              );
+            }
+
+            if (list.isEmpty) {
+              return const Center(child: Text("No recommendations yet"));
+            }
+
+            return _cardsList(
+              list,
+              onRefresh: () async {
+                await userQuery.get(const GetOptions(source: Source.server));
+                await aiQuery.get(const GetOptions(source: Source.server));
+              },
+            );
           },
         );
       },
@@ -290,6 +337,118 @@ class _AllProductsTabState extends State<_AllProductsTab>
 
   @override
   bool get wantKeepAlive => true;
+}
+
+/* ---------------- AI PRODUCTS (Keep-Alive) ---------------- */
+
+/* ---------------- AI PRODUCTS (Keep-Alive) ---------------- */
+
+class _AiProductsTab extends StatefulWidget {
+  const _AiProductsTab();
+  @override
+  State<_AiProductsTab> createState() => _AiProductsTabState();
+}
+
+class _AiProductsTabState extends State<_AiProductsTab>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+
+    final query = FirebaseService.firestore
+        .collection('aiProducts')
+        .orderBy('createdAt', descending: true)
+        .limit(50);
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: query.snapshots(includeMetadataChanges: true),
+      builder: (context, snap) {
+        if (!snap.hasData || snap.connectionState == ConnectionState.waiting) {
+          return _skeletonList(context);
+        }
+
+        if (snap.hasError) {
+          return _errorBox(context, 'Failed to load AI products');
+        }
+
+        final now = DateTime.now();
+        final docs = snap.data!.docs;
+
+        // ✅ Auto hide products older than 24 hours
+        final filtered = docs.where((d) {
+          final data = d.data() as Map<String, dynamic>;
+          final ts = data['createdAt'];
+
+          if (ts is! Timestamp) return false;
+
+          return now.difference(ts.toDate()).inHours < 24;
+        }).toList();
+
+        if (filtered.isEmpty) {
+          return const Center(child: Text("No AI products"));
+        }
+
+        // Convert to ProductUI list
+        final items = filtered.map((d) {
+          final data = d.data() as Map<String, dynamic>;
+
+          return ProductUI(
+            id: d.id,
+            name: data['name'] ?? "AI Product",
+
+            // ✅ YE LINE ADD KARO
+            tagline: data['tagline'] ?? "Futuristic Tech",
+
+            category: "AI Generated",
+            tags: const [],
+
+            // ⭐ IMAGE FIX
+            coverUrl: data['image'] ?? "",
+
+            // ⭐ LOGO FIX
+            creatorId: "",
+
+            views: 0,
+            upvotes: 0,
+            comments: 0,
+            shares: 0,
+            saves: 0,
+
+            timeAgo: _aiTimeAgo(data['createdAt']),
+            isAI: true,
+
+            onMorePressed: () {},
+          );
+        }).toList();
+
+        return _cardsList(
+          List<ProductUI>.from(items),
+          onRefresh: () async {
+            await query.get(const GetOptions(source: Source.server));
+          },
+        );
+      },
+    );
+  }
+
+  @override
+  bool get wantKeepAlive => true;
+}
+
+/// ⏳ TimeAgo fix for AI products
+String _aiTimeAgo(dynamic ts) {
+  if (ts == null) return "Just now";
+
+  if (ts is Timestamp) {
+    final dt = ts.toDate();
+    final diff = DateTime.now().difference(dt);
+
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
+  }
+
+  return "Just now";
 }
 
 /* ---------------- Shared UI ---------------- */
