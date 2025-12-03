@@ -71,7 +71,7 @@ class ProfilePage extends StatelessWidget {
 
                               return CircleAvatar(
                                 radius: 30,
-                                backgroundColor: cs.surfaceVariant,
+                                backgroundColor: cs.surfaceContainerHighest,
                                 backgroundImage: url.isNotEmpty
                                     ? NetworkImage(url)
                                     : null,
@@ -252,7 +252,7 @@ class _AboutTabState extends State<_AboutTab> {
                   hintText: 'Tell people about yourself…',
                   prefixIcon: const Icon(Icons.edit_outlined),
                   filled: true,
-                  fillColor: cs.surfaceVariant.withOpacity(.35),
+                  fillColor: cs.surfaceContainerHighest.withOpacity(.35),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -317,7 +317,7 @@ class _VisitChip extends StatelessWidget {
     return Chip(
       avatar: Icon(icon, size: 16, color: cs.onSurfaceVariant),
       label: const Text(''),
-      backgroundColor: cs.surfaceVariant.withOpacity(.4),
+      backgroundColor: cs.surfaceContainerHighest.withOpacity(.4),
       side: BorderSide(color: cs.outlineVariant),
     );
   }
@@ -423,7 +423,7 @@ class CollectionsTab extends StatelessWidget {
             final imageUrl = data['imageUrl'] as String?;
 
             return Card(
-              color: cs.surfaceVariant,
+              color: cs.surfaceContainerHighest,
               margin: const EdgeInsets.only(bottom: 12),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -492,7 +492,7 @@ class _ProductCard extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
 
     return Card(
-      color: cs.surfaceVariant,
+      color: cs.surfaceContainerHighest,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       clipBehavior: Clip.antiAlias,
       child: Column(
@@ -544,7 +544,7 @@ class _ListSkeleton extends StatelessWidget {
       itemBuilder: (_, __) => Container(
         height: 190,
         decoration: BoxDecoration(
-          color: cs.surfaceVariant.withOpacity(.6),
+          color: cs.surfaceContainerHighest.withOpacity(.6),
           borderRadius: BorderRadius.circular(12),
         ),
       ),

@@ -12,56 +12,47 @@ class AppException implements Exception {
 
 /// Network related exceptions
 class NetworkException extends AppException {
-  NetworkException(String message, {String? code, dynamic details})
-    : super(message, code: code, details: details);
+  NetworkException(super.message, {super.code, super.details});
 }
 
 /// Authentication related exceptions
 class AuthenticationException extends AppException {
-  AuthenticationException(String message, {String? code, dynamic details})
-    : super(message, code: code, details: details);
+  AuthenticationException(super.message, {super.code, super.details});
 }
 
 /// Authorization/Permission related exceptions
 class AuthorizationException extends AppException {
-  AuthorizationException(String message, {String? code, dynamic details})
-    : super(message, code: code, details: details);
+  AuthorizationException(super.message, {super.code, super.details});
 }
 
 /// Database/Firestore related exceptions
 class DatabaseException extends AppException {
-  DatabaseException(String message, {String? code, dynamic details})
-    : super(message, code: code, details: details);
+  DatabaseException(super.message, {super.code, super.details});
 }
 
 /// Validation related exceptions
 class ValidationException extends AppException {
-  ValidationException(String message, {String? code, dynamic details})
-    : super(message, code: code, details: details);
+  ValidationException(super.message, {super.code, super.details});
 }
 
 /// File upload/storage related exceptions
 class StorageException extends AppException {
-  StorageException(String message, {String? code, dynamic details})
-    : super(message, code: code, details: details);
+  StorageException(super.message, {super.code, super.details});
 }
 
 /// User not found exception
 class UserNotFoundException extends AppException {
-  UserNotFoundException(String message, {String? code, dynamic details})
-    : super(message, code: code, details: details);
+  UserNotFoundException(super.message, {super.code, super.details});
 }
 
 /// Product not found exception
 class ProductNotFoundException extends AppException {
-  ProductNotFoundException(String message, {String? code, dynamic details})
-    : super(message, code: code, details: details);
+  ProductNotFoundException(super.message, {super.code, super.details});
 }
 
 /// Rate limiting exception
 class RateLimitException extends AppException {
-  RateLimitException(String message, {String? code, dynamic details})
-    : super(message, code: code, details: details);
+  RateLimitException(super.message, {super.code, super.details});
 }
 
 /// Custom exception handler utility

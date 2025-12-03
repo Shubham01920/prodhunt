@@ -9,7 +9,7 @@ import 'package:prodhunt/model/user_model.dart';
 
 class AnimatedSideDrawer extends StatefulWidget {
   final Widget child;
-  const AnimatedSideDrawer({Key? key, required this.child}) : super(key: key);
+  const AnimatedSideDrawer({super.key, required this.child});
 
   @override
   AnimatedSideDrawerState createState() => AnimatedSideDrawerState();

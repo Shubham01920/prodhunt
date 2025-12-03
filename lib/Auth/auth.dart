@@ -209,7 +209,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: isDark
-                    ? [cs.surface, cs.surfaceVariant.withOpacity(.6)]
+                    ? [cs.surface, cs.surfaceContainerHighest.withOpacity(.6)]
                     : [cs.surface, cs.primaryContainer.withOpacity(.4)],
               ),
             ),
@@ -305,13 +305,15 @@ class _AuthScreenState extends State<AuthScreen> {
                                   ),
                                   validator: (v) {
                                     final val = (v ?? '').trim();
-                                    if (val.length < 4)
+                                    if (val.length < 4) {
                                       return 'Minimum 4 characters';
+                                    }
                                     final ok = RegExp(
                                       r'^[a-z0-9_]+$',
                                     ).hasMatch(val.toLowerCase());
-                                    if (!ok)
+                                    if (!ok) {
                                       return 'Use lowercase letters, numbers, _ only';
+                                    }
                                     return null;
                                   },
                                 ),
@@ -372,7 +374,7 @@ class _AuthScreenState extends State<AuthScreen> {
                                 ),
                                 decoration: BoxDecoration(
                                   borderRadius: BorderRadius.circular(14),
-                                  color: cs.surfaceVariant.withOpacity(0.3),
+                                  color: cs.surfaceContainerHighest.withOpacity(0.3),
                                   border: Border.all(
                                     color: cs.outline.withOpacity(0.4),
                                   ),

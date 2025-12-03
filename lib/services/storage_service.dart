@@ -5,7 +5,6 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
-import 'package:image_picker/image_picker.dart';
 
 import 'package:prodhunt/services/firebase_service.dart';
 

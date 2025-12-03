@@ -1,6 +1,5 @@
 // lib/services/trending_service.dart
 import 'package:cloud_functions/cloud_functions.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:prodhunt/model/trending_model.dart';
 import 'firebase_service.dart';
 

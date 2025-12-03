@@ -14,7 +14,7 @@ class ShareService {
     await FirebaseService.firestore.runTransaction((tx) async {
       final snap = await tx.get(ref);
       if (!snap.exists) return;
-      final data = (snap.data() ?? {}) as Map<String, dynamic>;
+      final data = (snap.data() ?? {});
       final current = (data['shareCount'] ?? 0) as int;
       tx.update(ref, {
         'shareCount': current + 1,
@@ -26,7 +26,7 @@ class ShareService {
   static Stream<int> shareCountStream(String productId) {
     return FirebaseService.productsRef.doc(productId).snapshots().map((d) {
       if (!d.exists) return 0;
-      return ((d.data() ?? const {}) as Map<String, dynamic>)['shareCount'] ??
+      return ((d.data() ?? const {}))['shareCount'] ??
           0;
     });
   }

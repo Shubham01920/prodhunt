@@ -119,7 +119,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     try {
       // if username changed -> validate + uniqueness + auth sync
       final snap = await FirebaseService.usersRef.doc(uid).get();
-      final data = (snap.data() as Map<String, dynamic>?) ?? {};
+      final data = snap.data() ?? {};
       final currentUsername = (data['username'] ?? '').toString();
 
       if (username != currentUsername) {
@@ -187,7 +187,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         // Avatar
                         CircleAvatar(
                           radius: 44,
-                          backgroundColor: cs.surfaceVariant,
+                          backgroundColor: cs.surfaceContainerHighest,
                           backgroundImage: _avatarUrl.isNotEmpty
                               ? NetworkImage(_avatarUrl)
                               : null,

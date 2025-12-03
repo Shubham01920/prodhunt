@@ -160,8 +160,9 @@ class _TrendingTabState extends State<_TrendingTab>
         if (isLoading) return _skeletonList(context);
 
         if (snap.hasError) return _errorBox(context, 'Failed to load trending');
-        if (!snap.data!.exists)
+        if (!snap.data!.exists) {
           return const Center(child: Text('No trending yet'));
+        }
 
         final model = TrendingModel.fromFirestore(snap.data!);
         final items = model.topProducts
@@ -317,8 +318,9 @@ class _AllProductsTabState extends State<_AllProductsTab>
         if (isLoading) return _skeletonList(context);
 
         if (snap.hasError) return _errorBox(context, 'Failed to load products');
-        if (snap.data!.docs.isEmpty)
+        if (snap.data!.docs.isEmpty) {
           return const Center(child: Text('No products'));
+        }
 
         final items = snap.data!.docs
             .map((d) => ProductModel.fromFirestore(d))

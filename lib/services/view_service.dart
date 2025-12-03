@@ -23,7 +23,7 @@ class ViewService {
 
       final pSnap = await tx.get(productRef);
       if (!pSnap.exists) return;
-      final data = (pSnap.data() ?? {}) as Map<String, dynamic>;
+      final data = (pSnap.data() ?? {});
       final curr = (data['views'] ?? 0) as int;
 
       tx.update(productRef, {
@@ -36,7 +36,7 @@ class ViewService {
   static Stream<int> viewsStream(String productId) {
     return FirebaseService.productsRef.doc(productId).snapshots().map((d) {
       if (!d.exists) return 0;
-      return ((d.data() ?? const {}) as Map<String, dynamic>)['views'] ?? 0;
+      return ((d.data() ?? const {}))['views'] ?? 0;
     });
   }
 }

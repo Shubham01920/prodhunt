@@ -41,7 +41,7 @@ class AdvertisePage extends StatelessWidget {
     ];
 
     return Scaffold(
-      backgroundColor: cs.background,
+      backgroundColor: cs.surface,
       body: SingleChildScrollView(
         child: Column(
           children: [
@@ -65,7 +65,7 @@ class AdvertisePage extends StatelessWidget {
                     "We work with the best partners",
                     style: textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
-                      color: cs.onBackground,
+                      color: cs.onSurface,
                     ),
                     textAlign: TextAlign.center,
                   ),

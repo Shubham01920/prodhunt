@@ -12,6 +12,6 @@ class ViewerId {
       await prefs.setString('viewer_id', v);
     }
     _cached = v;
-    return v!;
+    return v;
   }
 }

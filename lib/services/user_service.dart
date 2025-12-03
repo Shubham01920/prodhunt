@@ -117,7 +117,7 @@ class UserService {
     }
 
     final doc = await FirebaseService.usersRef.doc(uid).get();
-    final data = (doc.data() as Map<String, dynamic>?) ?? {};
+    final data = doc.data() ?? {};
     final current = (data['username'] ?? '').toString();
 
     if (current != username) {
@@ -182,7 +182,7 @@ class UserService {
       final tgtSnap = await tx.get(tgtRef);
       if (!currSnap.exists || !tgtSnap.exists) return;
 
-      final currData = currSnap.data() as Map<String, dynamic>? ?? {};
+      final currData = currSnap.data() ?? {};
       final List following = List.from(currData['following'] ?? []);
       final bool already = following.contains(targetUserId);
 
@@ -216,8 +216,8 @@ class UserService {
       final tgtSnap = await tx.get(tgtRef);
       if (!currSnap.exists || !tgtSnap.exists) return;
 
-      final currData = currSnap.data() as Map<String, dynamic>? ?? {};
-      final tgtData = tgtSnap.data() as Map<String, dynamic>? ?? {};
+      final currData = currSnap.data() ?? {};
+      final tgtData = tgtSnap.data() ?? {};
 
       final List following = List.from(currData['following'] ?? []);
       final List followers = List.from(tgtData['followers'] ?? []);

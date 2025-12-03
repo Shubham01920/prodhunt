@@ -1,10 +1,8 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-import 'package:prodhunt/services/product_service.dart';
 import 'package:prodhunt/services/product_submit_service.dart';
 
 class AddProduct extends StatefulWidget {

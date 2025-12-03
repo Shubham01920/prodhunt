@@ -213,7 +213,7 @@ class CommentService {
   static Stream<int> getCommentCount(String productId) {
     return FirebaseService.productsRef.doc(productId).snapshots().map((doc) {
       if (!doc.exists) return 0;
-      final data = (doc.data() ?? {}) as Map<String, dynamic>;
+      final data = (doc.data() ?? {});
       return (data['commentCount'] ?? 0) as int;
     });
   }
