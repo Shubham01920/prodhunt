@@ -1,33 +1,47 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:ui'; // Rect ke liye
 import 'package:share_plus/share_plus.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:prodhunt/services/firebase_service.dart';
 
 class ShareService {
+  static CollectionReference _getCollection(bool isAI) {
+    if (isAI) {
+      return FirebaseService.firestore.collection('aiProducts');
+    } else {
+      return FirebaseService.productsRef;
+    }
+  }
+
   static Future<void> shareProduct({
     required String productId,
     required String title,
     required String deepLink,
+    bool isAI = false,
+    Rect? sharePositionOrigin, // ✅ ADDED THIS PARAMETER
   }) async {
-    await Share.share('$title\n$deepLink');
+    try {
+      // ✅ Pass origin rect to prevent iPad crash
+      await Share.share(
+        'Check out $title on ProdHunt: $deepLink',
+        sharePositionOrigin: sharePositionOrigin,
+      );
 
-    final ref = FirebaseService.productsRef.doc(productId);
-    await FirebaseService.firestore.runTransaction((tx) async {
-      final snap = await tx.get(ref);
-      if (!snap.exists) return;
-      final data = (snap.data() ?? {});
-      final current = (data['shareCount'] ?? 0) as int;
-      tx.update(ref, {
-        'shareCount': current + 1,
+      final ref = _getCollection(isAI).doc(productId);
+
+      await ref.update({
+        'shareCount': FieldValue.increment(1),
         'updatedAt': FieldValue.serverTimestamp(),
       });
-    });
+    } catch (e) {
+      print("Error sharing product: $e");
+    }
   }
 
-  static Stream<int> shareCountStream(String productId) {
-    return FirebaseService.productsRef.doc(productId).snapshots().map((d) {
+  static Stream<int> shareCountStream(String productId, {bool isAI = false}) {
+    return _getCollection(isAI).doc(productId).snapshots().map((d) {
       if (!d.exists) return 0;
-      return ((d.data() ?? const {}))['shareCount'] ??
-          0;
+      final data = (d.data() ?? const {}) as Map<String, dynamic>;
+      return data['shareCount'] ?? data['shares'] ?? 0;
     });
   }
 }

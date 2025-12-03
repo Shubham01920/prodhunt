@@ -5,18 +5,35 @@ import 'package:prodhunt/services/firebase_service.dart';
 import 'package:prodhunt/services/notification_service.dart';
 
 class UpvoteService {
-  // Toggle upvote (add if not exists, remove if exists)
-  static Future<bool> toggleUpvote(String productId) async {
+  /// ✅ HELPER: Decide collection based on isAI flag
+  /// Agar isAI true hai toh 'aiProducts' collection use karega, nahi toh 'products'
+  static CollectionReference _getCollection(bool isAI) {
+    if (isAI) {
+      return FirebaseService.firestore.collection('aiProducts');
+    } else {
+      return FirebaseService.productsRef; // usually 'products'
+    }
+  }
+
+  /// ✅ TOGGLE UPVOTE
+  /// AI aur Normal dono products ke liye kaam karega
+  static Future<bool> toggleUpvote(
+    String productId, {
+    bool isAI = false,
+  }) async {
     try {
       String? currentUserId = FirebaseService.currentUserId;
       if (currentUserId == null) return false;
 
-      DocumentReference upvoteRef = FirebaseService.productsRef
+      // 1. Sahi collection select karo
+      final collectionRef = _getCollection(isAI);
+
+      DocumentReference upvoteRef = collectionRef
           .doc(productId)
           .collection('upvotes')
           .doc(currentUserId);
 
-      DocumentReference productRef = FirebaseService.productsRef.doc(productId);
+      DocumentReference productRef = collectionRef.doc(productId);
 
       return await FirebaseService.firestore.runTransaction((
         transaction,
@@ -34,15 +51,15 @@ class UpvoteService {
         String? productOwnerId = productData['createdBy'];
 
         if (upvoteSnap.exists) {
-          // ❌ Remove upvote
+          // ❌ Remove upvote (Unlike)
           transaction.delete(upvoteRef);
           transaction.update(productRef, {
-            'upvoteCount': currentUpvotes - 1,
+            'upvoteCount': (currentUpvotes > 0) ? currentUpvotes - 1 : 0,
             'updatedAt': FieldValue.serverTimestamp(),
           });
-          return false; // Upvote removed
+          return false; // Removed
         } else {
-          // ✅ Add upvote
+          // ✅ Add upvote (Like)
           UserModel? currentUser = await UserService.getCurrentUserProfile();
 
           transaction.set(upvoteRef, {
@@ -61,8 +78,12 @@ class UpvoteService {
             'updatedAt': FieldValue.serverTimestamp(),
           });
 
-          // 🔔 Send notification to product owner
-          if (productOwnerId != null && productOwnerId != currentUserId) {
+          // 🔔 NOTIFICATION LOGIC (Original)
+          // Agar owner exist karta hai aur wo current user nahi hai, toh notification bhejo.
+          // AI Products ke liye 'productOwnerId' usually empty hoga, toh ye skip ho jayega.
+          if (productOwnerId != null &&
+              productOwnerId.isNotEmpty &&
+              productOwnerId != currentUserId) {
             await NotificationService.createNotification(
               userId: productOwnerId,
               actorId: currentUserId,
@@ -76,7 +97,7 @@ class UpvoteService {
             );
           }
 
-          return true; // Upvote added
+          return true; // Added
         }
       });
     } catch (e) {
@@ -85,40 +106,25 @@ class UpvoteService {
     }
   }
 
-  // Check if current user has upvoted
-  static Future<bool> hasUserUpvoted(String productId) async {
-    try {
-      String? currentUserId = FirebaseService.currentUserId;
-      if (currentUserId == null) return false;
+  /// ✅ STREAM: Check if current user has upvoted (Button ka color set karne ke liye)
+  static Stream<bool> isUpvotedStream(String productId, {bool isAI = false}) {
+    String? currentUserId = FirebaseService.currentUserId;
+    if (currentUserId == null) return Stream.value(false);
 
-      DocumentSnapshot doc = await FirebaseService.productsRef
-          .doc(productId)
-          .collection('upvotes')
-          .doc(currentUserId)
-          .get();
-
-      return doc.exists;
-    } catch (e) {
-      print('Error checking upvote status: $e');
-      return false;
-    }
-  }
-
-  // Get product upvoters
-  static Stream<List<Map<String, dynamic>>> getProductUpvoters(
-    String productId,
-  ) {
-    return FirebaseService.productsRef
+    return _getCollection(isAI)
         .doc(productId)
         .collection('upvotes')
-        .orderBy('createdAt', descending: true)
+        .doc(currentUserId)
         .snapshots()
-        .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
+        .map((doc) => doc.exists);
   }
 
-  // Get upvote count stream
-  static Stream<int> getUpvoteCountStream(String productId) {
-    return FirebaseService.productsRef.doc(productId).snapshots().map((doc) {
+  /// ✅ STREAM: Live Upvote Count dikhane ke liye
+  static Stream<int> getUpvoteCountStream(
+    String productId, {
+    bool isAI = false,
+  }) {
+    return _getCollection(isAI).doc(productId).snapshots().map((doc) {
       if (doc.exists) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
         return data['upvoteCount'] ?? 0;
@@ -127,17 +133,16 @@ class UpvoteService {
     });
   }
 
-  // Get user's upvoted products
-  static Stream<List<String>> getUserUpvotedProducts(String userId) {
-    return FirebaseService.firestore
-        .collectionGroup('upvotes')
-        .where('userId', isEqualTo: userId)
+  // (Optional) Get list of upvoters
+  static Stream<List<Map<String, dynamic>>> getProductUpvoters(
+    String productId, {
+    bool isAI = false,
+  }) {
+    return _getCollection(isAI)
+        .doc(productId)
+        .collection('upvotes')
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
-              .map((doc) => doc.data()['productId'] as String)
-              .toList(),
-        );
+        .map((snapshot) => snapshot.docs.map((doc) => doc.data()).toList());
   }
 }

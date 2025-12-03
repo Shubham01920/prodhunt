@@ -1,19 +1,13 @@
-// lib/widgets/product_card.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:prodhunt/pages/product_details_page.dart';
-
 import 'package:prodhunt/ui/helper/product_ui_mapper.dart';
 import 'package:prodhunt/services/firebase_service.dart';
-
-// live counters
 import 'package:prodhunt/services/upvote_service.dart';
 import 'package:prodhunt/services/comment_service.dart';
 import 'package:prodhunt/services/save_service.dart';
 import 'package:prodhunt/services/share_service.dart';
 import 'package:prodhunt/services/view_service.dart';
-
-// comments UI
 import 'package:prodhunt/widgets/comment_widget.dart';
 
 class ProductCard extends StatefulWidget {
@@ -21,7 +15,7 @@ class ProductCard extends StatefulWidget {
   final ProductUI product;
 
   const ProductCard.skeleton({super.key})
-      : product = const ProductUI.skeleton();
+    : product = const ProductUI.skeleton();
 
   @override
   State<ProductCard> createState() => _ProductCardState();
@@ -30,22 +24,34 @@ class ProductCard extends StatefulWidget {
 class _ProductCardState extends State<ProductCard> {
   bool _viewRegistered = false;
 
-  bool get _isSkeleton => widget.product.isSkeleton;
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // NOTE: we register view only when user interacts (tap). See _registerView.
-  }
+  // Helper: Check if loading
+  bool get _isLoading => widget.product.isSkeleton || widget.product.id.isEmpty;
 
   Future<void> _registerView() async {
-    if (_viewRegistered || widget.product.id.isEmpty) return;
+    if (_viewRegistered || _isLoading) return;
     _viewRegistered = true;
     await ViewService.registerView(widget.product.id);
   }
 
+  // ✅ FIX: Safe Share Function
+  void _shareProduct(BuildContext ctx) {
+    if (_isLoading) return;
+
+    final box = ctx.findRenderObject() as RenderBox?;
+    final rect = box != null ? box.localToGlobal(Offset.zero) & box.size : null;
+    final deepLink = 'https://prodhunt.app/p/${widget.product.id}';
+
+    ShareService.shareProduct(
+      productId: widget.product.id,
+      title: widget.product.name,
+      deepLink: deepLink,
+      isAI: widget.product.isAI,
+      sharePositionOrigin: rect,
+    );
+  }
+
   void _openCommentsSheet(BuildContext context) {
-    if (widget.product.id.isEmpty) return;
+    if (_isLoading) return;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -86,7 +92,7 @@ class _ProductCardState extends State<ProductCard> {
                 ),
                 const Divider(height: 1),
 
-                // list
+                // Comments List
                 Expanded(
                   child: SingleChildScrollView(
                     controller: controller,
@@ -95,30 +101,27 @@ class _ProductCardState extends State<ProductCard> {
                         horizontal: 8,
                         vertical: 8,
                       ),
-                      child: CommentWidget(productId: widget.product.id),
+                      // ✅ Pass isAI
+                      child: CommentWidget(
+                        productId: widget.product.id,
+                        isAI: widget.product.isAI,
+                      ),
                     ),
                   ),
                 ),
 
-                // composer
                 const Divider(height: 1),
-                _CommentComposer(productId: widget.product.id),
+
+                // ⭐ FIX: Pass isAI to Composer so it saves in correct collection
+                _CommentComposer(
+                  productId: widget.product.id,
+                  isAI: widget.product.isAI,
+                ),
               ],
             ),
           ),
         );
       },
-    );
-  }
-
-  void _shareProduct(BuildContext context) {
-    if (widget.product.id.isEmpty) return;
-    final deepLink =
-        'https://yourapp.com/p/${widget.product.id}'; // TODO: replace with your real link
-    ShareService.shareProduct(
-      productId: widget.product.id,
-      title: widget.product.name,
-      deepLink: deepLink,
     );
   }
 
@@ -127,411 +130,413 @@ class _ProductCardState extends State<ProductCard> {
     final product = widget.product;
     final cs = Theme.of(context).colorScheme;
 
-    /* ---------------- Cover (product image) ---------------- */
-    Widget cover() {
-      if (_isSkeleton ||
-          product.coverUrl == null ||
-          product.coverUrl!.isEmpty) {
-        return _shimmerBox(context, height: double.infinity);
-      }
-
-      return GestureDetector(
-        onTap: () async {
-          await _registerView(); // View count increase
-
-          // Navigate to Details Page
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ProductDetailsPage(product: widget.product),
-            ),
-          );
-        },
-        child: Image.network(
-          product.coverUrl!,
-          key: ValueKey(product.coverUrl),
-          fit: BoxFit.fill,
-          filterQuality: FilterQuality.medium,
-          frameBuilder: (context, child, frame, wasSync) {
-            if (frame == null) {
-              return _shimmerBox(context, height: double.infinity);
-            }
-            return AnimatedOpacity(
-              opacity: 1,
-              duration: const Duration(milliseconds: 220),
-              curve: Curves.easeOut,
-              child: child,
-            );
-          },
-          loadingBuilder: (_, child, progress) => progress == null
-              ? child
-              : _shimmerBox(context, height: double.infinity),
-          errorBuilder: (_, __, ___) => _skeletonBox(context),
+    void onTapCard() async {
+      if (_isLoading) return;
+      await _registerView();
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => ProductDetailsPage(product: widget.product),
         ),
       );
     }
 
-    /* ---------------- Avatar + posted-by (users/<uid>) ---------------- */
-    Widget postedBy() {
-      if (_isSkeleton || product.creatorId.isEmpty) {
-        return Row(
-          children: [
-            _avatarPlaceholder(cs),
-            const SizedBox(width: 10),
-            _skeletonLine(context, width: 120, height: 12),
-          ],
-        );
-      }
-
-      final userDoc = FirebaseService.usersRef.doc(product.creatorId);
-      return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-        stream: userDoc.snapshots(),
-        builder: (context, snap) {
-          String displayName = 'Unknown';
-          String avatarUrl = '';
-          if (snap.hasData && snap.data!.exists) {
-            final data = snap.data!.data()!;
-            avatarUrl =
-                (data['profilePicture'] ??
-                        data['photoURL'] ??
-                        data['avatar'] ??
-                        data['image'] ??
-                        '')
-                    .toString();
-            displayName = (data['displayName'] ?? data['username'] ?? 'Unknown')
-                .toString();
-          }
-
-          Widget avatar() {
-            if (avatarUrl.isEmpty) return _avatarPlaceholder(cs);
-            final img = Image.network(
-              avatarUrl,
-              key: ValueKey(avatarUrl),
-              width: 28,
-              height: 28,
-              fit: BoxFit.cover,
-              frameBuilder: (context, child, frame, _) {
-                if (frame == null) {
-                  return ClipOval(child: _shimmerBox(context, height: 28));
-                }
-                return AnimatedOpacity(
-                  opacity: 1,
-                  duration: const Duration(milliseconds: 180),
-                  curve: Curves.easeOut,
-                  child: child,
-                );
-              },
-              loadingBuilder: (context, child, progress) {
-                if (progress == null) return child;
-                return ClipOval(child: _shimmerBox(context, height: 28));
-              },
-              errorBuilder: (_, __, ___) =>
-                  Icon(Icons.person, size: 16, color: cs.onSurface),
-            );
-            return CircleAvatar(
-              radius: 14,
-              backgroundColor: cs.surfaceContainerHighest,
-              child: ClipOval(child: img),
-            );
-          }
-
-          return Row(
-            children: [
-              avatar(),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'by $displayName',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: cs.onSurfaceVariant,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ],
-          );
-        },
-      );
-    }
-
-    // ---------- Combined/merged Card decoration ----------
-    final outerDecoration = widget.product.isAI
-        ? BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(width: 2, color: Colors.transparent),
-            gradient: LinearGradient(
-              colors: [
-                Colors.blue.withOpacity(0.40),
-                Colors.indigo.withOpacity(0.40),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          )
-        : BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.08),
-                blurRadius: 10,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          );
-
-    final innerDecoration = BoxDecoration(
-      color: cs.surfaceContainerHighest,
-      borderRadius:
-          BorderRadius.circular(widget.product.isAI ? 14 : 12), // inner radius
-    );
-
     return Container(
-      decoration: outerDecoration,
-      child: Container(
-        margin: widget.product.isAI ? const EdgeInsets.all(1.2) : EdgeInsets.zero,
-        decoration: innerDecoration,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // media + AI badge if any
-            Stack(
-              children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.vertical(
-                    top: Radius.circular(widget.product.isAI ? 16 : 12),
+      margin: const EdgeInsets.only(bottom: 24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: (widget.product.isAI && !_isLoading)
+            ? Border.all(color: Colors.blueAccent.withOpacity(0.3), width: 1.5)
+            : null,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 1. BIG IMAGE AREA
+          Stack(
+            children: [
+              GestureDetector(
+                onTap: onTapCard,
+                child: Container(
+                  height: 220,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(12),
+                    ),
+                    image:
+                        (product.coverUrl != null &&
+                            product.coverUrl!.isNotEmpty)
+                        ? DecorationImage(
+                            image: NetworkImage(product.coverUrl!),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
                   ),
-                  child: AspectRatio(aspectRatio: 16 / 9, child: cover()),
+                  child: (product.coverUrl == null || product.coverUrl!.isEmpty)
+                      ? Center(
+                          child: Icon(
+                            Icons.image,
+                            size: 40,
+                            color: Colors.grey[400],
+                          ),
+                        )
+                      : null,
+                ),
+              ),
+
+              // AI Badge
+              if (widget.product.isAI && !_isLoading)
+                Positioned(
+                  top: 16,
+                  left: 16,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.6),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      "AI",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
                 ),
 
-                if (widget.product.isAI)
-                  Positioned(
-                    top: 10,
-                    right: 10,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.blueAccent.withOpacity(0.15),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: Colors.blueAccent.withOpacity(0.3),
-                          width: 1,
-                        ),
-                      ),
-                      child: const Text(
-                        "AI",
-                        style: TextStyle(
-                          color: Colors.blueAccent,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.1,
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-
-            // main content
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // posted-by row
-                  postedBy(),
-
-                  const SizedBox(height: 12),
-
-                  // title row (tap = register view)
-                  GestureDetector(
-                    onTap: _registerView,
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: _isSkeleton
-                              ? _skeletonLine(context, width: 160)
-                              : Text(
-                                  product.name,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    color: cs.onSurface,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                        ),
-                        const SizedBox(width: 12),
-                        _isSkeleton
-                            ? _skeletonLine(context, width: 40, height: 10)
-                            : Text(
-                                product.timeAgo,
-                                style: TextStyle(
-                                  color: cs.onSurfaceVariant,
-                                  fontSize: 12,
-                                ),
-                              ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 8),
-
-                  // tags
-                  _isSkeleton
-                      ? Row(
-                          children: [
-                            _skeletonLine(context, width: 80, height: 10),
-                            const SizedBox(width: 8),
-                            _skeletonLine(context, width: 90, height: 10),
-                            const SizedBox(width: 8),
-                            _skeletonLine(context, width: 70, height: 10),
-                          ],
-                        )
-                      : Wrap(
-                          spacing: 8,
-                          runSpacing: -6,
-                          children: widget.product.tags.take(3).map((t) {
-                            return Text(
-                              '• $t',
-                              style: TextStyle(
-                                color: cs.onSurfaceVariant,
-                                fontSize: 12,
-                              ),
-                            );
-                          }).toList(),
-                        ),
-
-                  const SizedBox(height: 12),
-
-                  // category pill
-                  _isSkeleton
-                      ? _skeletonCapsule(context, width: 160, height: 26)
-                      : _Pill(text: product.category),
-
-                  const SizedBox(height: 16),
-
-                  // metrics row
-                  Row(
-                    children: [
-                      const SizedBox(width: 4),
-
-                      if (!_isSkeleton && product.id.isNotEmpty) ...[
-                        // UPVOTE (live + toggle)
-                        _MetricLive(
-                          icon: Icons.arrow_upward_rounded,
-                          stream: UpvoteService.getUpvoteCountStream(product.id),
-                          fallback: product.upvotes,
-                          onTap: () => UpvoteService.toggleUpvote(product.id),
-                          tooltip: 'Upvote',
-                        ),
-
-                        // COMMENTS (live + opens sheet)
-                        _MetricLive(
-                          icon: Icons.mode_comment_outlined,
-                          stream: CommentService.getCommentCount(product.id),
-                          fallback: product.comments,
-                          tooltip: 'Comments',
-                          onTap: () {
-                            _openCommentsSheet(context);
-                          },
-                        ),
-
-                        // SHARE (tap to share + counter updates via service tx)
-                        _MetricButton(
-                          icon: Icons.share_outlined,
-                          value: product.shares,
-                          tooltip: 'Share',
-                          onTap: () => _shareProduct(context),
-                        ),
-
-                        // SAVE (live toggle)
-                        StreamBuilder<bool>(
-                          stream: SaveService.isSaved(product.id),
-                          builder: (context, s) {
-                            final saved = s.data ?? false;
-                            return Container(
-                              margin: const EdgeInsets.symmetric(horizontal: 6),
-                              decoration: BoxDecoration(
-                                color: cs.surfaceContainerHigh,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: cs.outlineVariant),
-                              ),
-                              child: IconButton(
-                                tooltip: saved ? 'Saved' : 'Save',
-                                visualDensity: VisualDensity.compact,
-                                icon: Icon(
-                                  saved ? Icons.bookmark : Icons.bookmark_outline,
-                                ),
-                                onPressed: () =>
-                                    SaveService.toggleSave(product.id),
-                              ),
-                            );
-                          },
-                        ),
-                      ] else ...[
-                        _Metric(
-                          icon: Icons.arrow_upward_rounded,
-                          value: product.upvotes,
-                        ),
-                        _Metric(
-                          icon: Icons.mode_comment_outlined,
-                          value: product.comments,
-                        ),
-                        _Metric(icon: Icons.share_outlined, value: product.shares),
-                        Container(
-                          margin: const EdgeInsets.symmetric(horizontal: 6),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: cs.surfaceContainerHigh,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: cs.outlineVariant),
-                          ),
-                          child: const Icon(Icons.bookmark_outline, size: 20),
-                        ),
-                      ],
-
-                      const Spacer(),
-
-                      // Views counter
-                      Icon(Icons.visibility, size: 16, color: cs.onSurfaceVariant),
-                      const SizedBox(width: 4),
-                      _isSkeleton
-                          ? _skeletonLine(context, width: 24, height: 10)
-                          : StreamBuilder<int>(
-                              stream: ViewService.viewsStream(product.id),
-                              builder: (_, s) {
-                                final val = s.data ?? product.views;
-                                return Text(
-                                  '$val',
-                                  style: TextStyle(
-                                    color: cs.onSurfaceVariant,
-                                    fontSize: 12,
-                                  ),
-                                );
-                              },
+              // BOOKMARK BUTTON
+              Positioned(
+                top: 16,
+                right: 16,
+                child: _isLoading
+                    ? _staticIconBox(Icons.bookmark_outline)
+                    : StreamBuilder<bool>(
+                        stream: SaveService.isSaved(product.id),
+                        builder: (context, s) {
+                          final saved = s.data ?? false;
+                          return GestureDetector(
+                            onTap: () => SaveService.toggleSave(
+                              product.id,
+                              isAI: product.isAI,
                             ),
+                            child: Container(
+                              height: 36,
+                              width: 36,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.9),
+                                borderRadius: BorderRadius.circular(8),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 4,
+                                  ),
+                                ],
+                              ),
+                              child: Icon(
+                                saved ? Icons.bookmark : Icons.bookmark_outline,
+                                size: 20,
+                                color: saved ? cs.primary : Colors.black54,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
 
-                      const SizedBox(width: 12),
-
-                      IconButton(
-                        visualDensity: VisualDensity.compact,
-                        onPressed: widget.product.onMorePressed,
-                        icon: const Icon(Icons.more_horiz_rounded),
+          // 2. CONTENT AREA
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Brand Info
+                GestureDetector(
+                  onTap: onTapCard,
+                  child: Row(
+                    children: [
+                      _buildCreatorAvatar(),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _isLoading
+                            ? _skeletonLine(width: 150)
+                            : Text(
+                                product.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 16,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                      ),
+                      Text(
+                        _isLoading ? "" : product.timeAgo,
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 12,
+                        ),
                       ),
                     ],
                   ),
-                ],
+                ),
+
+                const SizedBox(height: 12),
+
+                // Tagline
+                if (_isLoading)
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _skeletonLine(width: double.infinity),
+                      const SizedBox(height: 6),
+                      _skeletonLine(width: 200),
+                    ],
+                  )
+                else if (product.tagline.isNotEmpty)
+                  Text(
+                    product.tagline,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: Colors.grey[800],
+                      fontSize: 14,
+                      height: 1.4,
+                    ),
+                  ),
+
+                const SizedBox(height: 16),
+
+                // Bottom Row
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    // Category Pill
+                    _isLoading
+                        ? _skeletonLine(width: 80, height: 24)
+                        : Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              (product.tags.isNotEmpty
+                                      ? product.tags.first
+                                      : product.category)
+                                  .toUpperCase(),
+                              style: TextStyle(
+                                color: Colors.grey[800],
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+
+                    // Actions
+                    Row(
+                      children: [
+                        // Share
+                        Builder(
+                          builder: (ctx) => _buildSquareButton(
+                            icon: Icons.share_outlined,
+                            label: "Share",
+                            onTap: () => _shareProduct(ctx),
+                          ),
+                        ),
+
+                        const SizedBox(width: 8),
+
+                        // Comments
+                        _isLoading
+                            ? _staticIconBox(Icons.chat_bubble_outline)
+                            : _MetricLive(
+                                stream: CommentService.getCommentCount(
+                                  product.id,
+                                  isAI: product.isAI,
+                                ),
+                                fallback: product.comments,
+                                icon: Icons.chat_bubble_outline,
+                                onTap: () => _openCommentsSheet(context),
+                              ),
+
+                        const SizedBox(width: 8),
+
+                        // Upvote
+                        _isLoading
+                            ? _buildSquareButton(
+                                icon: Icons.arrow_upward_outlined,
+                                label: "0",
+                                onTap: () {},
+                              )
+                            : StreamBuilder<int>(
+                                stream: UpvoteService.getUpvoteCountStream(
+                                  product.id,
+                                  isAI: product.isAI,
+                                ),
+                                builder: (context, snap) {
+                                  final count = snap.data ?? product.upvotes;
+                                  return StreamBuilder<bool>(
+                                    stream: UpvoteService.isUpvotedStream(
+                                      product.id,
+                                      isAI: product.isAI,
+                                    ),
+                                    builder: (context, userSnap) {
+                                      final isUpvoted = userSnap.data ?? false;
+                                      return _buildSquareButton(
+                                        icon: isUpvoted
+                                            ? Icons.arrow_upward
+                                            : Icons.arrow_upward_outlined,
+                                        label: "$count",
+                                        isActive: isUpvoted,
+                                        onTap: () => UpvoteService.toggleUpvote(
+                                          product.id,
+                                          isAI: product.isAI,
+                                        ),
+                                      );
+                                    },
+                                  );
+                                },
+                              ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- Helpers ---
+
+  Widget _staticIconBox(IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Icon(icon, size: 16, color: Colors.black54),
+    );
+  }
+
+  Widget _buildCreatorAvatar() {
+    if (_isLoading) {
+      return Container(
+        width: 24,
+        height: 24,
+        decoration: BoxDecoration(
+          color: Colors.grey[300],
+          borderRadius: BorderRadius.circular(6),
+        ),
+      );
+    }
+    if (widget.product.isAI) {
+      return Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: Colors.blue.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: const Icon(Icons.auto_awesome, size: 16, color: Colors.blue),
+      );
+    }
+    if (widget.product.creatorId.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: Colors.grey[200],
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: const Icon(Icons.person, size: 16, color: Colors.grey),
+      );
+    }
+    return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+      stream: FirebaseService.usersRef
+          .doc(widget.product.creatorId)
+          .snapshots(),
+      builder: (context, snap) {
+        String url = '';
+        if (snap.hasData && snap.data!.exists) {
+          url = (snap.data!.data()!['profilePicture'] ?? '').toString();
+        }
+        if (url.isNotEmpty) {
+          return Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(6),
+              image: DecorationImage(
+                image: NetworkImage(url),
+                fit: BoxFit.cover,
+              ),
+            ),
+          );
+        }
+        return Container(
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: Colors.grey[200],
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: const Icon(Icons.person, size: 16, color: Colors.grey),
+        );
+      },
+    );
+  }
+
+  Widget _buildSquareButton({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    bool isActive = false,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isActive ? Colors.orange.withOpacity(0.1) : Colors.grey[100],
+          borderRadius: BorderRadius.circular(6),
+          border: isActive ? Border.all(color: Colors.deepOrange) : null,
+        ),
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              size: 16,
+              color: isActive ? Colors.deepOrange : Colors.black54,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: isActive ? Colors.deepOrange : Colors.black54,
               ),
             ),
           ],
@@ -540,285 +545,70 @@ class _ProductCardState extends State<ProductCard> {
     );
   }
 
-  /* ---------------- helpers ---------------- */
-
-  Widget _avatarPlaceholder(ColorScheme cs) => CircleAvatar(
-        radius: 16,
-        backgroundColor: Colors.grey.shade300,
-        child: Icon(Icons.person, size: 16, color: cs.onSecondaryContainer),
-      );
-
-  Widget _shimmerBox(BuildContext context, {double? height}) {
-    final c = Theme.of(context).colorScheme.surfaceContainerHigh;
-    return _Shimmer(
-      child: Container(height: height, color: c),
-    );
-  }
-
-  Widget _skeletonBox(BuildContext context) =>
-      Container(color: Theme.of(context).colorScheme.surfaceContainerHigh);
-
-  Widget _skeletonLine(
-    BuildContext context, {
-    double width = 120,
-    double height = 12,
-  }) {
-    final c = Theme.of(context).colorScheme.surfaceContainerHigh;
-    return _Shimmer(
-      child: Container(
-        width: width,
-        height: height,
-        decoration: BoxDecoration(
-          color: c,
-          borderRadius: BorderRadius.circular(6),
-        ),
-      ),
-    );
-  }
-
-  Widget _skeletonCapsule(
-    BuildContext context, {
-    double width = 64,
-    double height = 28,
-  }) {
-    final c = Theme.of(context).colorScheme.surfaceContainerHigh;
-    return _Shimmer(
-      child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 6),
-        width: width,
-        height: height,
-        decoration: BoxDecoration(
-          color: c,
-          borderRadius: BorderRadius.circular(8),
-        ),
-      ),
-    );
-  }
-}
-
-class _Pill extends StatelessWidget {
-  const _Pill({required this.text});
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+  Widget _skeletonLine({double width = 100, double height = 12}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      width: width,
+      height: height,
       decoration: BoxDecoration(
-        color: Colors.grey.shade200,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: cs.onSurface,
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-        ),
+        color: Colors.grey[300],
+        borderRadius: BorderRadius.circular(4),
       ),
     );
   }
 }
 
-class _Metric extends StatelessWidget {
-  const _Metric({required this.icon, required this.value});
-  final IconData icon;
-  final int value;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: cs.onSurface),
-          const SizedBox(width: 6),
-          Text(
-            '$value',
-            style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w600),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MetricButton extends StatelessWidget {
-  const _MetricButton({
-    required this.icon,
-    required this.value,
-    required this.onTap,
-    this.tooltip,
-  });
-
-  final IconData icon;
-  final int value;
-  final VoidCallback onTap;
-  final String? tooltip;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final child = Container(
-      margin: const EdgeInsets.symmetric(horizontal: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, size: 22, color: cs.onSurface),
-          const SizedBox(height: 8),
-          Text(
-            '$value',
-            style: TextStyle(
-                color: cs.onSurface, fontWeight: FontWeight.w600, fontSize: 18),
-          ),
-        ],
-      ),
-    );
-
-    return Tooltip(
-      message: tooltip ?? '',
-      child: InkWell(
-        borderRadius: BorderRadius.circular(8),
-        onTap: onTap,
-        child: child,
-      ),
-    );
-  }
-}
-
+// Metric Live (Fixed)
 class _MetricLive extends StatelessWidget {
-  const _MetricLive({
-    required this.icon,
-    required this.stream,
-    required this.fallback,
-    this.onTap,
-    this.tooltip,
-  });
-
-  final IconData icon;
   final Stream<int> stream;
   final int fallback;
-  final VoidCallback? onTap;
-  final String? tooltip;
-
+  final IconData icon;
+  final VoidCallback onTap;
+  const _MetricLive({
+    required this.stream,
+    required this.fallback,
+    required this.icon,
+    required this.onTap,
+  });
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    Widget box(int val) => Container(
-          margin: const EdgeInsets.symmetric(horizontal: 6),
-          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade100,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Column(
-            children: [
-              Icon(icon, size: 22, color: cs.onSurface),
-              const SizedBox(height: 8),
-              Text(
-                '$val',
-                style: TextStyle(
-                    color: cs.onSurface,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 18),
-              ),
-            ],
-          ),
-        );
-
-    final child = StreamBuilder<int>(
+    return StreamBuilder<int>(
       stream: stream,
-      builder: (_, s) => box(s.data ?? fallback),
-    );
-
-    if (onTap == null) return child;
-
-    return Tooltip(
-      message: tooltip ?? '',
-      child: InkWell(
-        borderRadius: BorderRadius.circular(8),
-        onTap: onTap,
-        child: child,
-      ),
-    );
-  }
-}
-
-/* ---------------- Shimmer primitive ---------------- */
-
-class _Shimmer extends StatefulWidget {
-  const _Shimmer({required this.child});
-  final Widget child;
-
-  @override
-  State<_Shimmer> createState() => _ShimmerState();
-}
-
-class _ShimmerState extends State<_Shimmer>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ac = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1200),
-  )..repeat();
-
-  @override
-  void dispose() {
-    _ac.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final base = Theme.of(context).colorScheme.surfaceContainerHigh;
-    final hi = Theme.of(context).colorScheme.surfaceContainerHighest;
-
-    return AnimatedBuilder(
-      animation: _ac,
-      builder: (_, __) {
-        return ShaderMask(
-          shaderCallback: (rect) {
-            final w = rect.width;
-            final dx = (w * 1.5) * _ac.value - w * 0.5;
-            return LinearGradient(
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-              colors: [base, hi, base],
-              stops: const [0.35, 0.5, 0.65],
-              transform: _GradientTranslation(dx, 0),
-            ).createShader(rect);
-          },
-          blendMode: BlendMode.srcATop,
-          child: widget.child,
+      builder: (context, snap) {
+        final count = snap.data ?? fallback;
+        return GestureDetector(
+          onTap: onTap,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(
+              children: [
+                Icon(icon, size: 16, color: Colors.black54),
+                const SizedBox(width: 4),
+                Text(
+                  "$count",
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black54,
+                  ),
+                ),
+              ],
+            ),
+          ),
         );
       },
     );
   }
 }
 
-class _GradientTranslation extends GradientTransform {
-  final double dx, dy;
-  const _GradientTranslation(this.dx, this.dy);
-  @override
-  Matrix4 transform(Rect bounds, {TextDirection? textDirection}) =>
-      Matrix4.identity()..translate(dx, dy);
-}
-
-/* ---------------- Comments composer (parent) ---------------- */
-
+// ✅ FIXED: Comment Composer now accepts isAI
 class _CommentComposer extends StatefulWidget {
-  const _CommentComposer({required this.productId});
+  const _CommentComposer({required this.productId, this.isAI = false});
   final String productId;
+  final bool isAI;
 
   @override
   State<_CommentComposer> createState() => _CommentComposerState();
@@ -828,17 +618,12 @@ class _CommentComposerState extends State<_CommentComposer> {
   final _controller = TextEditingController();
   bool _posting = false;
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
   Future<void> _post() async {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
     setState(() => _posting = true);
-    await CommentService.addComment(widget.productId, text);
+    // ✅ PASSING IS AI
+    await CommentService.addComment(widget.productId, text, isAI: widget.isAI);
     if (!mounted) return;
     _controller.clear();
     setState(() => _posting = false);
@@ -869,25 +654,21 @@ class _CommentComposerState extends State<_CommentComposer> {
                   ),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: cs.outlineVariant),
+                    borderSide: BorderSide.none,
                   ),
                 ),
               ),
             ),
             const SizedBox(width: 8),
             _posting
-                ? const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12),
-                    child: SizedBox(
-                      height: 24,
-                      width: 24,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : IconButton(
                     onPressed: _post,
                     icon: const Icon(Icons.send_rounded),
-                    tooltip: 'Post',
                   ),
           ],
         ),
