@@ -1,4 +1,7 @@
 // lib/pages/admin_dashboard.dart
+// Admin dashboard page for product hunt app.
+// Shows quick stats, trending/upvote charts and lists of products
+// grouped by status (pending, published, rejected).
 
 import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -6,6 +9,11 @@ import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:prodhunt/services/firebase_service.dart';
 
+/// Admin overview page used by administrators.
+///
+/// Displays counts (pending/approved/rejected), a top-trending
+/// bar chart (by upvote count), a monthly uploads line chart,
+/// and expandable lists for products grouped by status.
 class AdminDashboardPage extends StatefulWidget {
   const AdminDashboardPage({super.key});
 
@@ -14,10 +22,12 @@ class AdminDashboardPage extends StatefulWidget {
 }
 
 class _AdminDashboardPageState extends State<AdminDashboardPage> {
+  // Expand/collapse flags for the product lists
   bool showPending = false;
   bool showApproved = false;
   bool showRejected = false;
 
+  // Currently selected year for the monthly uploads chart
   int selectedYear = DateTime.now().year;
 
   @override
@@ -102,6 +112,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
         final docs = snap.data!.docs;
 
+        // Count documents by status to show quick stats
         int pending = docs.where((d) => d['status'] == 'pending').length;
         int approved = docs.where((d) => d['status'] == 'published').length;
         int rejected = docs.where((d) => d['status'] == 'rejected').length;
@@ -197,6 +208,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                       ),
                     ),
 
+                    // Build bar groups from the snapshot; each bar represents upvote count
                     barGroups: List.generate(docs.length, (i) {
                       return BarChartGroupData(
                         x: i,
@@ -262,11 +274,12 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 
               final docs = snap.data!.docs;
 
+              // Aggregate counts per month for the selected year
               List<int> monthly = List.filled(12, 0);
 
               for (var d in docs) {
                 final ts = d['createdAt'];
-                if (ts == null) continue;
+                if (ts == null) continue; // skip if missing timestamp
 
                 final dt = ts.toDate();
                 if (dt.year == selectedYear) {
@@ -353,11 +366,14 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   // -----------------------------------------------------------
   // LISTS
   // -----------------------------------------------------------
+  // Convenience wrappers for product lists filtered by status
   Widget _pendingList() => _productList("pending", "createdAt");
   Widget _approvedList() => _productList("published", "launchDate");
   Widget _rejectedList() => _productList("rejected", "updatedAt");
 
   Widget _productList(String status, String orderBy) {
+    // Query products by `status` and order by the provided field.
+    // Uses the shared `productsRef` from `FirebaseService`.
     final query = FirebaseService.productsRef
         .where('status', isEqualTo: status)
         .orderBy(orderBy, descending: true);

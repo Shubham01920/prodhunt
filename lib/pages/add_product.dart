@@ -1,10 +1,23 @@
+<<<<<<< Updated upstream
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+=======
+// FULLY COMMENTED VERSION OF AddProduct PAGE
+// (Every important line explained in simple Hinglish)
+
+import 'dart:io';
+import 'package:flutter/foundation.dart'; // 👉 Detects if app is running on Web
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart'; // 👉 For picking logo & cover images from gallery
+>>>>>>> Stashed changes
 
 import 'package:prodhunt/services/product_submit_service.dart';
 
+// -------------------------------
+// MAIN PAGE
+// -------------------------------
 class AddProduct extends StatefulWidget {
   const AddProduct({super.key});
 
@@ -13,30 +26,34 @@ class AddProduct extends StatefulWidget {
 }
 
 class _AddProductState extends State<AddProduct> {
+  // 👉 Form key for validation
   final _form = GlobalKey<FormState>();
 
-  // fields
-  final _nameCtrl = TextEditingController();
-  final _taglineCtrl = TextEditingController();
-  final _descCtrl = TextEditingController();
-  final _categoryCtrl = TextEditingController(text: 'General');
-  final _tagsCtrl = TextEditingController(); // comma-separated
+  // ---------- TEXT FIELDS ----------
+  final _nameCtrl = TextEditingController(); // Product name
+  final _taglineCtrl = TextEditingController(); // Short line
+  final _descCtrl = TextEditingController(); // Description
+  final _categoryCtrl = TextEditingController(text: 'General'); // Default category
+  final _tagsCtrl = TextEditingController(); // Comma-separated tags
 
-  // images
-  final _picker = ImagePicker();
-  XFile? _logoFile;
-  Uint8List? _logoBytes;
+  // ---------- IMAGES ----------
+  final _picker = ImagePicker(); // 👉 Image picker instance
+
+  XFile? _logoFile; // 👉 For mobile file
+  Uint8List? _logoBytes; // 👉 For web byte image
+
   XFile? _coverFile;
   Uint8List? _coverBytes;
 
-  // publish
-  bool _publishNow = true;
-  DateTime? _scheduledAt;
+  // ---------- PUBLISH OPTIONS ----------
+  bool _publishNow = true; // 👉 Publish now OR schedule later
+  DateTime? _scheduledAt; // 👉 Time if scheduled
 
-  bool _saving = false;
+  bool _saving = false; // 👉 Show loading on submit
 
   @override
   void dispose() {
+    // 👉 Clean controllers to avoid memory leak
     _nameCtrl.dispose();
     _taglineCtrl.dispose();
     _descCtrl.dispose();
@@ -45,23 +62,31 @@ class _AddProductState extends State<AddProduct> {
     super.dispose();
   }
 
+  // ----------------------------------------
+  // PICK LOGO IMAGE
+  // ----------------------------------------
   Future<void> _pickLogo() async {
     final picked = await _picker.pickImage(
       source: ImageSource.gallery,
       imageQuality: 92,
     );
-    if (picked == null) return;
+    if (picked == null) return; // user cancelled
 
     if (kIsWeb) {
+      // 👉 On web we store bytes
       _logoBytes = await picked.readAsBytes();
       _logoFile = null;
     } else {
+      // 👉 On mobile we store file
       _logoFile = picked;
       _logoBytes = null;
     }
-    setState(() {});
+    setState(() {}); // refresh UI
   }
 
+  // ----------------------------------------
+  // PICK COVER IMAGE
+  // ----------------------------------------
   Future<void> _pickCover() async {
     final picked = await _picker.pickImage(
       source: ImageSource.gallery,
@@ -79,17 +104,25 @@ class _AddProductState extends State<AddProduct> {
     setState(() {});
   }
 
+  // ----------------------------------------
+  // IMAGE PROVIDER: return correct UI image
+  // ----------------------------------------
   ImageProvider? _imgProv({required XFile? file, required Uint8List? bytes}) {
     if (kIsWeb) {
       if (bytes != null) return MemoryImage(bytes);
     } else {
       if (file != null) return FileImage(File(file.path));
     }
-    return null;
+    return null; // nothing selected
   }
 
+  // ----------------------------------------
+  // PICK SCHEDULE DATE + TIME
+  // ----------------------------------------
   Future<void> _pickScheduleDateTime() async {
     final now = DateTime.now().add(const Duration(minutes: 5));
+
+    // 👉 Pick date
     final d = await showDatePicker(
       context: context,
       initialDate: now,
@@ -98,20 +131,26 @@ class _AddProductState extends State<AddProduct> {
     );
     if (d == null) return;
 
+    // 👉 Pick time
     final t = await showTimePicker(
       context: context,
       initialTime: TimeOfDay(hour: now.hour, minute: (now.minute ~/ 5) * 5),
     );
     if (t == null) return;
 
+    // 👉 Combine date + time
     setState(() {
       _scheduledAt = DateTime(d.year, d.month, d.day, t.hour, t.minute);
     });
   }
 
+  // ----------------------------------------
+  // SUBMIT PRODUCT
+  // ----------------------------------------
   Future<void> _submit() async {
-    if (!(_form.currentState?.validate() ?? false)) return;
+    if (!(_form.currentState?.validate() ?? false)) return; // form invalid
 
+    // 👉 Handle scheduling
     if (!_publishNow && _scheduledAt == null) {
       _snack('Pick a schedule date & time');
       return;
@@ -123,12 +162,14 @@ class _AddProductState extends State<AddProduct> {
 
     setState(() => _saving = true);
     try {
+      // 👉 Extract tags from comma separated text
       final tags = _tagsCtrl.text
           .split(',')
           .map((e) => e.trim())
           .where((e) => e.isNotEmpty)
           .toList();
 
+      // 👉 Call service to upload data
       final productId = await ProductSubmitService.createProduct(
         name: _nameCtrl.text,
         tagline: _taglineCtrl.text,
@@ -140,12 +181,14 @@ class _AddProductState extends State<AddProduct> {
         publishNow: _publishNow,
         scheduledAt: _publishNow ? null : _scheduledAt,
 
+        // 👉 Images
         logoFile: _logoFile,
         logoBytes: _logoBytes,
         coverFile: _coverFile,
         coverBytes: _coverBytes,
       );
 
+      // 👉 Success message
       _snack(
         _publishNow
             ? 'Published! (id: $productId)'
@@ -159,12 +202,18 @@ class _AddProductState extends State<AddProduct> {
     }
   }
 
+  // ----------------------------------------
+  // SNACKBAR HELPER
+  // ----------------------------------------
   void _snack(String msg) {
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
       ..showSnackBar(SnackBar(content: Text(msg)));
   }
 
+  // ----------------------------------------
+  // MAIN UI
+  // ----------------------------------------
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
@@ -173,8 +222,9 @@ class _AddProductState extends State<AddProduct> {
       appBar: AppBar(title: const Text('Submit product')),
       body: LayoutBuilder(
         builder: (context, c) {
-          final wide = c.maxWidth >= 900;
+          final wide = c.maxWidth >= 900; // 👉 responsive layout
           final form = _buildForm(cs);
+
           return AnimatedSwitcher(
             duration: const Duration(milliseconds: 200),
             child: wide
@@ -194,6 +244,8 @@ class _AddProductState extends State<AddProduct> {
           );
         },
       ),
+
+      // 👉 Floating Submit Button
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _saving ? null : _submit,
         label: _saving
@@ -209,6 +261,9 @@ class _AddProductState extends State<AddProduct> {
     );
   }
 
+  // ----------------------------------------
+  // BUILD FORM UI
+  // ----------------------------------------
   Widget _buildForm(ColorScheme cs) {
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
@@ -218,6 +273,8 @@ class _AddProductState extends State<AddProduct> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _Section(title: 'Basics'),
+
+            // NAME
             _Field(
               label: 'Name',
               child: TextFormField(
@@ -228,6 +285,8 @@ class _AddProductState extends State<AddProduct> {
                     : null,
               ),
             ),
+
+            // TAGLINE
             _Field(
               label: 'Tagline',
               child: TextFormField(
@@ -236,6 +295,8 @@ class _AddProductState extends State<AddProduct> {
                 validator: (v) => (v ?? '').trim().isEmpty ? 'Required' : null,
               ),
             ),
+
+            // DESCRIPTION
             _Field(
               label: 'Description',
               child: TextFormField(
@@ -245,6 +306,8 @@ class _AddProductState extends State<AddProduct> {
                 decoration: const InputDecoration(hintText: 'What does it do…'),
               ),
             ),
+
+            // CATEGORY + TAGS BLOCK
             Row(
               children: [
                 Expanded(
@@ -275,6 +338,8 @@ class _AddProductState extends State<AddProduct> {
 
             const SizedBox(height: 8),
             _Section(title: 'Images'),
+
+            // IMAGE PICK ROW
             Row(
               children: [
                 Expanded(
@@ -299,6 +364,8 @@ class _AddProductState extends State<AddProduct> {
 
             const SizedBox(height: 8),
             _Section(title: 'Launch'),
+
+            // PUBLISH SWITCH
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('Publish now'),
@@ -306,6 +373,7 @@ class _AddProductState extends State<AddProduct> {
               value: _publishNow,
               onChanged: (v) => setState(() => _publishNow = v),
             ),
+
             if (!_publishNow) ...[
               Row(
                 children: [
@@ -330,6 +398,9 @@ class _AddProductState extends State<AddProduct> {
     );
   }
 
+  // ----------------------------------------
+  // PREVIEW CARD (LIVE PREVIEW OF PRODUCT)
+  // ----------------------------------------
   Widget _buildPreviewCard(ColorScheme cs) {
     final logo = _imgProv(file: _logoFile, bytes: _logoBytes);
     final cover = _imgProv(file: _coverFile, bytes: _coverBytes);
@@ -344,7 +415,7 @@ class _AddProductState extends State<AddProduct> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // cover
+          // COVER IMAGE PREVIEW
           ClipRRect(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
             child: AspectRatio(
@@ -354,6 +425,8 @@ class _AddProductState extends State<AddProduct> {
                   : Image(image: cover, fit: BoxFit.cover),
             ),
           ),
+
+          // TITLE + LOGO
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
             child: Row(
@@ -382,6 +455,7 @@ class _AddProductState extends State<AddProduct> {
               ],
             ),
           ),
+
           const SizedBox(height: 8),
         ],
       ),
@@ -389,7 +463,9 @@ class _AddProductState extends State<AddProduct> {
   }
 }
 
-/* ---------- small UI helpers ---------- */
+// ----------------------------------------
+// SMALL UI HELPERS BELOW
+// ----------------------------------------
 
 class _Section extends StatelessWidget {
   const _Section({required this.title});
@@ -411,26 +487,39 @@ class _Section extends StatelessWidget {
   }
 }
 
+// ----------------------------------------
+// FIELD WIDGET (Label + Input)
+// ----------------------------------------
 class _Field extends StatelessWidget {
   const _Field({required this.label, required this.child});
+
+  // 👉 Field label (example: Name, Tagline, Category)
   final String label;
+
+  // 👉 The actual input widget (TextFormField)
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
+    final cs = Theme.of(context).colorScheme; // 👉 Theme colors
+
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 12), // spacing between fields
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 👉 Label text
           Text(
             label,
-            style: Theme.of(
-              context,
-            ).textTheme.labelLarge?.copyWith(color: cs.onSurfaceVariant),
+            style: Theme.of(context)
+                .textTheme
+                .labelLarge
+                ?.copyWith(color: cs.onSurfaceVariant), // lighter label color
           ),
-          const SizedBox(height: 6),
+
+          const SizedBox(height: 6), // small spacing
+
+          // 👉 The actual TextFormField / input widget
           child,
         ],
       ),
@@ -438,13 +527,17 @@ class _Field extends StatelessWidget {
   }
 }
 
+// ----------------------------------------
+// IMAGE PICK TILE (Tap to pick logo/cover)
+// ----------------------------------------
 class _ImagePickTile extends StatelessWidget {
   const _ImagePickTile({
-    required this.label,
-    required this.onTap,
-    this.image,
-    this.hint,
+    required this.label, // 👉 Title: Logo / Cover
+    required this.onTap, // 👉 Function to call on tap
+    this.image, // 👉 Selected image preview
+    this.hint, // 👉 Small hint under text
   });
+
   final String label;
   final VoidCallback onTap;
   final ImageProvider? image;
@@ -453,27 +546,32 @@ class _ImagePickTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+
     return InkWell(
-      onTap: onTap,
+      onTap: onTap, // 👉 Tapping opens gallery
       borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: cs.surfaceContainerHighest,
-          border: Border.all(color: cs.outlineVariant),
+          color: cs.surfaceContainerHighest, // card background
+          border: Border.all(color: cs.outlineVariant), // subtle border
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
           children: [
+            // 👉 Image preview circle
             CircleAvatar(
               radius: 28,
-              backgroundImage: image,
-              backgroundColor: cs.surfaceContainerHigh,
+              backgroundImage: image, // show picked image
+              backgroundColor: cs.surfaceContainerHigh, // fallback color
               child: image == null
-                  ? Icon(Icons.image, color: cs.onSurface)
+                  ? Icon(Icons.image, color: cs.onSurface) // placeholder icon
                   : null,
             ),
+
             const SizedBox(width: 12),
+
+            // 👉 Text column: Label + Hint
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -486,12 +584,15 @@ class _ImagePickTile extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    hint ?? 'Tap to upload',
-                    style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
+                    hint ?? 'Tap to upload', // fallback hint
+                    style:
+                        TextStyle(color: cs.onSurfaceVariant, fontSize: 12),
                   ),
                 ],
               ),
             ),
+
+            // 👉 Upload icon
             const Icon(Icons.upload_rounded),
           ],
         ),
@@ -499,3 +600,4 @@ class _ImagePickTile extends StatelessWidget {
     );
   }
 }
+  

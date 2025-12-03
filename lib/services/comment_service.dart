@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:prodhunt/model/comment_model.dart';
-import 'package:prodhunt/model/user_model.dart';
 import 'package:prodhunt/services/firebase_service.dart';
 import 'package:prodhunt/services/user_service.dart';
 import 'package:prodhunt/services/notification_service.dart';

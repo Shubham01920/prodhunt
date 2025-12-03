@@ -21,7 +21,7 @@ class ProductCard extends StatefulWidget {
   final ProductUI product;
 
   const ProductCard.skeleton({super.key})
-    : product = const ProductUI.skeleton();
+      : product = const ProductUI.skeleton();
 
   @override
   State<ProductCard> createState() => _ProductCardState();
@@ -179,7 +179,7 @@ class _ProductCardState extends State<ProductCard> {
         return Row(
           children: [
             _avatarPlaceholder(cs),
-            const SizedBox(width: 8),
+            const SizedBox(width: 10),
             _skeletonLine(context, width: 120, height: 12),
           ],
         );
@@ -240,7 +240,7 @@ class _ProductCardState extends State<ProductCard> {
           return Row(
             children: [
               avatar(),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   'by $displayName',
@@ -261,6 +261,7 @@ class _ProductCardState extends State<ProductCard> {
 
     return Container(
       decoration: BoxDecoration(
+<<<<<<< Updated upstream
         borderRadius: BorderRadius.circular(16),
 
         // ⭐ NEW: AI CARD GRADIENT BORDER
@@ -365,6 +366,191 @@ class _ProductCardState extends State<ProductCard> {
                       size: 16,
                       color: cs.onSurfaceVariant,
                     ),
+=======
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // media
+          ClipRRect(
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+            child: AspectRatio(aspectRatio: 16 / 9, child: cover()),
+          ),
+
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // posted-by row
+                postedBy(),
+
+                const SizedBox(height: 12),
+
+                // title row (tap = register view)
+                GestureDetector(
+                  onTap: _registerView,
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: _isSkeleton
+                            ? _skeletonLine(context, width: 160)
+                            : Text(
+                                product.name,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: cs.onSurface,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                      ),
+                      const SizedBox(width: 12),
+                      _isSkeleton
+                          ? _skeletonLine(context, width: 40, height: 10)
+                          : Text(
+                              product.timeAgo,
+                              style: TextStyle(
+                                color: cs.onSurfaceVariant,
+                                fontSize: 12,
+                              ),
+                            ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 8),
+
+                // tags
+                _isSkeleton
+                    ? Row(
+                        children: [
+                          _skeletonLine(context, width: 80, height: 10),
+                          const SizedBox(width: 8),
+                          _skeletonLine(context, width: 90, height: 10),
+                          const SizedBox(width: 8),
+                          _skeletonLine(context, width: 70, height: 10),
+                        ],
+                      )
+                    : Wrap(
+                        spacing: 8,
+                        runSpacing: -6,
+                        children: widget.product.tags.take(3).map((t) {
+                          return Text(
+                            '• $t',
+                            style: TextStyle(
+                              color: cs.onSurfaceVariant,
+                              fontSize: 12,
+                            ),
+                          );
+                        }).toList(),
+                      ),
+
+                const SizedBox(height: 12),
+
+                // category pill
+                _isSkeleton
+                    ? _skeletonCapsule(context, width: 160, height: 26)
+                    : _Pill(text: product.category),
+
+                const SizedBox(height: 16),
+
+                // metrics row
+                Row(
+                  children: [
+                    if (!_isSkeleton && product.id.isNotEmpty) ...[
+                      // UPVOTE (live + toggle)
+                      _MetricLive(
+                        icon: Icons.arrow_upward_rounded,
+                        stream: UpvoteService.getUpvoteCountStream(product.id),
+                        fallback: product.upvotes,
+                        onTap: () => UpvoteService.toggleUpvote(product.id),
+                        tooltip: 'Upvote',
+                      ),
+
+                      // COMMENTS (live + opens sheet)
+                      _MetricLive(
+                        icon: Icons.mode_comment_outlined,
+                        stream: CommentService.getCommentCount(product.id),
+                        fallback: product.comments,
+                        tooltip: 'Comments',
+                        onTap: () {
+                          _openCommentsSheet(context);
+                        },
+                      ),
+
+                      // SHARE (tap to share + counter updates via service tx)
+                      _MetricButton(
+                        icon: Icons.share_outlined,
+                        value: product.shares,
+                        tooltip: 'Share',
+                        onTap: () => _shareProduct(context),
+                      ),
+
+                      // SAVE (live toggle)
+                      StreamBuilder<bool>(
+                        stream: SaveService.isSaved(product.id),
+                        builder: (context, s) {
+                          final saved = s.data ?? false;
+                          return Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 6),
+                            decoration: BoxDecoration(
+                              color: cs.surfaceContainerHigh,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: cs.outlineVariant),
+                            ),
+                            child: IconButton(
+                              tooltip: saved ? 'Saved' : 'Save',
+                              visualDensity: VisualDensity.compact,
+                              icon: Icon(
+                                saved ? Icons.bookmark : Icons.bookmark_outline,
+                              ),
+                              onPressed: () =>
+                                  SaveService.toggleSave(product.id),
+                            ),
+                          );
+                        },
+                      ),
+                    ] else ...[
+                      _Metric(
+                        icon: Icons.arrow_upward_rounded,
+                        value: product.upvotes,
+                      ),
+                      _Metric(
+                        icon: Icons.mode_comment_outlined,
+                        value: product.comments,
+                      ),
+                      _Metric(icon: Icons.share_outlined, value: product.shares),
+                      Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 6),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 6,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: cs.surfaceContainerHigh,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: cs.outlineVariant),
+                        ),
+                        child: const Icon(Icons.bookmark_outline, size: 20),
+                      ),
+                    ],
+
+                    const Spacer(),
+
+                    // Views counter
+                    Icon(Icons.visibility, size: 16, color: cs.onSurfaceVariant),
+>>>>>>> Stashed changes
                     const SizedBox(width: 4),
                     _isSkeleton
                         ? _skeletonLine(context, width: 24, height: 10)
@@ -381,6 +567,7 @@ class _ProductCardState extends State<ProductCard> {
                               );
                             },
                           ),
+<<<<<<< Updated upstream
                     const SizedBox(width: 10),
                     _isSkeleton
                         ? _skeletonLine(context, width: 40, height: 10)
@@ -536,6 +723,22 @@ class _ProductCardState extends State<ProductCard> {
             ),
           ],
         ),
+=======
+
+                    const SizedBox(width: 12),
+
+                    IconButton(
+                      visualDensity: VisualDensity.compact,
+                      onPressed: widget.product.onMorePressed,
+                      icon: const Icon(Icons.more_horiz_rounded),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+>>>>>>> Stashed changes
       ),
     );
   }
@@ -543,10 +746,10 @@ class _ProductCardState extends State<ProductCard> {
   /* ---------------- helpers ---------------- */
 
   Widget _avatarPlaceholder(ColorScheme cs) => CircleAvatar(
-    radius: 14,
-    backgroundColor: cs.secondaryContainer,
-    child: Icon(Icons.person, size: 16, color: cs.onSecondaryContainer),
-  );
+        radius: 16,
+        backgroundColor: Colors.grey.shade300,
+        child: Icon(Icons.person, size: 16, color: cs.onSecondaryContainer),
+      );
 
   Widget _shimmerBox(BuildContext context, {double? height}) {
     final c = Theme.of(context).colorScheme.surfaceContainerHigh;
@@ -606,9 +809,8 @@ class _Pill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: cs.outlineVariant),
+        color: Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
         text,
@@ -634,9 +836,8 @@ class _Metric extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 6),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: cs.surfaceContainerHigh,
+        color: Colors.grey.shade100,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: cs.outlineVariant),
       ),
       child: Row(
         children: [
@@ -670,19 +871,19 @@ class _MetricButton extends StatelessWidget {
     final cs = Theme.of(context).colorScheme;
     final child = Container(
       margin: const EdgeInsets.symmetric(horizontal: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
       decoration: BoxDecoration(
-        color: cs.surfaceContainerHigh,
+        color: Colors.grey.shade100,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: cs.outlineVariant),
       ),
-      child: Row(
+      child: Column(
         children: [
-          Icon(icon, size: 16, color: cs.onSurface),
-          const SizedBox(width: 6),
+          Icon(icon, size: 22, color: cs.onSurface),
+          const SizedBox(height: 8),
           Text(
             '$value',
-            style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w600),
+            style: TextStyle(
+                color: cs.onSurface, fontWeight: FontWeight.w600, fontSize: 18),
           ),
         ],
       ),
@@ -718,24 +919,26 @@ class _MetricLive extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     Widget box(int val) => Container(
-      margin: const EdgeInsets.symmetric(horizontal: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: cs.outlineVariant),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 16, color: cs.onSurface),
-          const SizedBox(width: 6),
-          Text(
-            '$val',
-            style: TextStyle(color: cs.onSurface, fontWeight: FontWeight.w600),
+          margin: const EdgeInsets.symmetric(horizontal: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade100,
+            borderRadius: BorderRadius.circular(8),
           ),
-        ],
-      ),
-    );
+          child: Column(
+            children: [
+              Icon(icon, size: 22, color: cs.onSurface),
+              const SizedBox(height: 8),
+              Text(
+                '$val',
+                style: TextStyle(
+                    color: cs.onSurface,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 18),
+              ),
+            ],
+          ),
+        );
 
     final child = StreamBuilder<int>(
       stream: stream,
