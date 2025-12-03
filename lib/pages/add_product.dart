@@ -1,9 +1,3 @@
-<<<<<<< Updated upstream
-import 'dart:io';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-=======
 // FULLY COMMENTED VERSION OF AddProduct PAGE
 // (Every important line explained in simple Hinglish)
 
@@ -11,7 +5,6 @@ import 'dart:io';
 import 'package:flutter/foundation.dart'; // 👉 Detects if app is running on Web
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart'; // 👉 For picking logo & cover images from gallery
->>>>>>> Stashed changes
 
 import 'package:prodhunt/services/product_submit_service.dart';
 
@@ -600,4 +593,3 @@ class _ImagePickTile extends StatelessWidget {
     );
   }
 }
-  

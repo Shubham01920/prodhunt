@@ -35,9 +35,7 @@ class _ProductCardState extends State<ProductCard> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // NOTE: हम "view" को तभी count करेंगे जब card को user interact करे (tap).
-    // अगर आप scroll दिखते ही view count करना चाहते हैं, तो यहाँ register ना करें,
-    // बल्कि नीचे _registerView() को tap handlers पर कॉल करें (जो हम already कर रहे हैं).
+    // NOTE: we register view only when user interacts (tap). See _registerView.
   }
 
   Future<void> _registerView() async {
@@ -259,55 +257,56 @@ class _ProductCardState extends State<ProductCard> {
       );
     }
 
+    // ---------- Combined/merged Card decoration ----------
+    final outerDecoration = widget.product.isAI
+        ? BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(width: 2, color: Colors.transparent),
+            gradient: LinearGradient(
+              colors: [
+                Colors.blue.withOpacity(0.40),
+                Colors.indigo.withOpacity(0.40),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          )
+        : BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          );
+
+    final innerDecoration = BoxDecoration(
+      color: cs.surfaceContainerHighest,
+      borderRadius:
+          BorderRadius.circular(widget.product.isAI ? 14 : 12), // inner radius
+    );
+
     return Container(
-      decoration: BoxDecoration(
-<<<<<<< Updated upstream
-        borderRadius: BorderRadius.circular(16),
-
-        // ⭐ NEW: AI CARD GRADIENT BORDER
-        border: widget.product.isAI
-            ? Border.all(
-                width: 2,
-                color:
-                    Colors.transparent, // needed for BoxDecoration + gradient
-              )
-            : Border.all(color: cs.outlineVariant),
-
-        // ⭐ NEW: gradient border + glass background
-        gradient: widget.product.isAI
-            ? LinearGradient(
-                colors: [
-                  Colors.blue.withOpacity(0.40),
-                  Colors.indigo.withOpacity(0.40),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              )
-            : null,
-      ),
-
-      // ⭐ Inner container to maintain normal background
+      decoration: outerDecoration,
       child: Container(
-        margin: widget.product.isAI ? EdgeInsets.all(1.2) : EdgeInsets.zero,
-        decoration: BoxDecoration(
-          color: cs.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(14),
-        ),
-
+        margin: widget.product.isAI ? const EdgeInsets.all(1.2) : EdgeInsets.zero,
+        decoration: innerDecoration,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // media
+            // media + AI badge if any
             Stack(
               children: [
                 ClipRRect(
-                  borderRadius: const BorderRadius.vertical(
-                    top: Radius.circular(16),
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(widget.product.isAI ? 16 : 12),
                   ),
                   child: AspectRatio(aspectRatio: 16 / 9, child: cover()),
                 ),
 
-                // ⭐ AI BADGE HERE
                 if (widget.product.isAI)
                   Positioned(
                     top: 10,
@@ -339,406 +338,204 @@ class _ProductCardState extends State<ProductCard> {
               ],
             ),
 
-            // title row (tap = register view)
-            GestureDetector(
-              onTap: _registerView,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _isSkeleton
-                          ? _skeletonLine(context, width: 160)
-                          : Text(
-                              product.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: cs.onSurface,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                    ),
-                    const SizedBox(width: 8),
-                    Icon(
-                      Icons.visibility,
-                      size: 16,
-                      color: cs.onSurfaceVariant,
-                    ),
-=======
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.08),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // media
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-            child: AspectRatio(aspectRatio: 16 / 9, child: cover()),
-          ),
+            // main content
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // posted-by row
+                  postedBy(),
 
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // posted-by row
-                postedBy(),
+                  const SizedBox(height: 12),
 
-                const SizedBox(height: 12),
-
-                // title row (tap = register view)
-                GestureDetector(
-                  onTap: _registerView,
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _isSkeleton
-                            ? _skeletonLine(context, width: 160)
-                            : Text(
-                                product.name,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: cs.onSurface,
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w800,
+                  // title row (tap = register view)
+                  GestureDetector(
+                    onTap: _registerView,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _isSkeleton
+                              ? _skeletonLine(context, width: 160)
+                              : Text(
+                                  product.name,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: cs.onSurface,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                  ),
                                 ),
-                              ),
-                      ),
-                      const SizedBox(width: 12),
-                      _isSkeleton
-                          ? _skeletonLine(context, width: 40, height: 10)
-                          : Text(
-                              product.timeAgo,
-                              style: TextStyle(
-                                color: cs.onSurfaceVariant,
-                                fontSize: 12,
-                              ),
-                            ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 8),
-
-                // tags
-                _isSkeleton
-                    ? Row(
-                        children: [
-                          _skeletonLine(context, width: 80, height: 10),
-                          const SizedBox(width: 8),
-                          _skeletonLine(context, width: 90, height: 10),
-                          const SizedBox(width: 8),
-                          _skeletonLine(context, width: 70, height: 10),
-                        ],
-                      )
-                    : Wrap(
-                        spacing: 8,
-                        runSpacing: -6,
-                        children: widget.product.tags.take(3).map((t) {
-                          return Text(
-                            '• $t',
-                            style: TextStyle(
-                              color: cs.onSurfaceVariant,
-                              fontSize: 12,
-                            ),
-                          );
-                        }).toList(),
-                      ),
-
-                const SizedBox(height: 12),
-
-                // category pill
-                _isSkeleton
-                    ? _skeletonCapsule(context, width: 160, height: 26)
-                    : _Pill(text: product.category),
-
-                const SizedBox(height: 16),
-
-                // metrics row
-                Row(
-                  children: [
-                    if (!_isSkeleton && product.id.isNotEmpty) ...[
-                      // UPVOTE (live + toggle)
-                      _MetricLive(
-                        icon: Icons.arrow_upward_rounded,
-                        stream: UpvoteService.getUpvoteCountStream(product.id),
-                        fallback: product.upvotes,
-                        onTap: () => UpvoteService.toggleUpvote(product.id),
-                        tooltip: 'Upvote',
-                      ),
-
-                      // COMMENTS (live + opens sheet)
-                      _MetricLive(
-                        icon: Icons.mode_comment_outlined,
-                        stream: CommentService.getCommentCount(product.id),
-                        fallback: product.comments,
-                        tooltip: 'Comments',
-                        onTap: () {
-                          _openCommentsSheet(context);
-                        },
-                      ),
-
-                      // SHARE (tap to share + counter updates via service tx)
-                      _MetricButton(
-                        icon: Icons.share_outlined,
-                        value: product.shares,
-                        tooltip: 'Share',
-                        onTap: () => _shareProduct(context),
-                      ),
-
-                      // SAVE (live toggle)
-                      StreamBuilder<bool>(
-                        stream: SaveService.isSaved(product.id),
-                        builder: (context, s) {
-                          final saved = s.data ?? false;
-                          return Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 6),
-                            decoration: BoxDecoration(
-                              color: cs.surfaceContainerHigh,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: cs.outlineVariant),
-                            ),
-                            child: IconButton(
-                              tooltip: saved ? 'Saved' : 'Save',
-                              visualDensity: VisualDensity.compact,
-                              icon: Icon(
-                                saved ? Icons.bookmark : Icons.bookmark_outline,
-                              ),
-                              onPressed: () =>
-                                  SaveService.toggleSave(product.id),
-                            ),
-                          );
-                        },
-                      ),
-                    ] else ...[
-                      _Metric(
-                        icon: Icons.arrow_upward_rounded,
-                        value: product.upvotes,
-                      ),
-                      _Metric(
-                        icon: Icons.mode_comment_outlined,
-                        value: product.comments,
-                      ),
-                      _Metric(icon: Icons.share_outlined, value: product.shares),
-                      Container(
-                        margin: const EdgeInsets.symmetric(horizontal: 6),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 6,
                         ),
-                        decoration: BoxDecoration(
-                          color: cs.surfaceContainerHigh,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: cs.outlineVariant),
-                        ),
-                        child: const Icon(Icons.bookmark_outline, size: 20),
-                      ),
-                    ],
-
-                    const Spacer(),
-
-                    // Views counter
-                    Icon(Icons.visibility, size: 16, color: cs.onSurfaceVariant),
->>>>>>> Stashed changes
-                    const SizedBox(width: 4),
-                    _isSkeleton
-                        ? _skeletonLine(context, width: 24, height: 10)
-                        : StreamBuilder<int>(
-                            stream: ViewService.viewsStream(product.id),
-                            builder: (_, s) {
-                              final val = s.data ?? product.views;
-                              return Text(
-                                '$val',
+                        const SizedBox(width: 12),
+                        _isSkeleton
+                            ? _skeletonLine(context, width: 40, height: 10)
+                            : Text(
+                                product.timeAgo,
                                 style: TextStyle(
                                   color: cs.onSurfaceVariant,
                                   fontSize: 12,
                                 ),
-                              );
-                            },
-                          ),
-<<<<<<< Updated upstream
-                    const SizedBox(width: 10),
-                    _isSkeleton
-                        ? _skeletonLine(context, width: 40, height: 10)
-                        : Text(
-                            product.timeAgo,
-                            style: TextStyle(
-                              color: cs.onSurfaceVariant,
-                              fontSize: 12,
-                            ),
-                          ),
-                  ],
-                ),
-              ),
-            ),
-
-            // posted-by row
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: postedBy(),
-            ),
-
-            // tags
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              child: _isSkeleton
-                  ? Row(
-                      children: [
-                        _skeletonLine(context, width: 80, height: 10),
-                        const SizedBox(width: 8),
-                        _skeletonLine(context, width: 90, height: 10),
-                        const SizedBox(width: 8),
-                        _skeletonLine(context, width: 70, height: 10),
+                              ),
                       ],
-                    )
-                  : Wrap(
-                      spacing: 8,
-                      runSpacing: -6,
-                      children: widget.product.tags.take(3).map((t) {
-                        return Text(
-                          '• $t',
-                          style: TextStyle(
-                            color: cs.onSurfaceVariant,
-                            fontSize: 12,
-                          ),
-                        );
-                      }).toList(),
                     ),
-            ),
+                  ),
 
-            // category pill
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
-              child: _isSkeleton
-                  ? Align(
-                      alignment: Alignment.centerLeft,
-                      child: _skeletonCapsule(context, width: 160, height: 26),
-                    )
-                  : _Pill(text: product.category),
-            ),
+                  const SizedBox(height: 8),
 
-            // metrics row
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 8, 8, 8),
-              child: Row(
-                children: [
-                  const SizedBox(width: 4),
+                  // tags
+                  _isSkeleton
+                      ? Row(
+                          children: [
+                            _skeletonLine(context, width: 80, height: 10),
+                            const SizedBox(width: 8),
+                            _skeletonLine(context, width: 90, height: 10),
+                            const SizedBox(width: 8),
+                            _skeletonLine(context, width: 70, height: 10),
+                          ],
+                        )
+                      : Wrap(
+                          spacing: 8,
+                          runSpacing: -6,
+                          children: widget.product.tags.take(3).map((t) {
+                            return Text(
+                              '• $t',
+                              style: TextStyle(
+                                color: cs.onSurfaceVariant,
+                                fontSize: 12,
+                              ),
+                            );
+                          }).toList(),
+                        ),
 
-                  if (!_isSkeleton && product.id.isNotEmpty) ...[
-                    // UPVOTE (live + toggle)
-                    _MetricLive(
-                      icon: Icons.arrow_upward_rounded,
-                      stream: UpvoteService.getUpvoteCountStream(product.id),
-                      fallback: product.upvotes,
-                      onTap: () => UpvoteService.toggleUpvote(product.id),
-                      tooltip: 'Upvote',
-                    ),
+                  const SizedBox(height: 12),
 
-                    // COMMENTS (live + opens sheet)
-                    _MetricLive(
-                      icon: Icons.mode_comment_outlined,
-                      stream: CommentService.getCommentCount(product.id),
-                      fallback: product.comments,
-                      tooltip: 'Comments',
-                      onTap: () {
-                        _openCommentsSheet(context);
-                      },
-                    ),
+                  // category pill
+                  _isSkeleton
+                      ? _skeletonCapsule(context, width: 160, height: 26)
+                      : _Pill(text: product.category),
 
-                    // SHARE (tap to share + counter updates via service tx)
-                    _MetricButton(
-                      icon: Icons.share_outlined,
-                      value: product.shares,
-                      tooltip: 'Share',
-                      onTap: () => _shareProduct(context),
-                    ),
+                  const SizedBox(height: 16),
 
-                    // SAVE (live toggle)
-                    StreamBuilder<bool>(
-                      stream: SaveService.isSaved(product.id),
-                      builder: (context, s) {
-                        final saved = s.data ?? false;
-                        return Container(
+                  // metrics row
+                  Row(
+                    children: [
+                      const SizedBox(width: 4),
+
+                      if (!_isSkeleton && product.id.isNotEmpty) ...[
+                        // UPVOTE (live + toggle)
+                        _MetricLive(
+                          icon: Icons.arrow_upward_rounded,
+                          stream: UpvoteService.getUpvoteCountStream(product.id),
+                          fallback: product.upvotes,
+                          onTap: () => UpvoteService.toggleUpvote(product.id),
+                          tooltip: 'Upvote',
+                        ),
+
+                        // COMMENTS (live + opens sheet)
+                        _MetricLive(
+                          icon: Icons.mode_comment_outlined,
+                          stream: CommentService.getCommentCount(product.id),
+                          fallback: product.comments,
+                          tooltip: 'Comments',
+                          onTap: () {
+                            _openCommentsSheet(context);
+                          },
+                        ),
+
+                        // SHARE (tap to share + counter updates via service tx)
+                        _MetricButton(
+                          icon: Icons.share_outlined,
+                          value: product.shares,
+                          tooltip: 'Share',
+                          onTap: () => _shareProduct(context),
+                        ),
+
+                        // SAVE (live toggle)
+                        StreamBuilder<bool>(
+                          stream: SaveService.isSaved(product.id),
+                          builder: (context, s) {
+                            final saved = s.data ?? false;
+                            return Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 6),
+                              decoration: BoxDecoration(
+                                color: cs.surfaceContainerHigh,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: cs.outlineVariant),
+                              ),
+                              child: IconButton(
+                                tooltip: saved ? 'Saved' : 'Save',
+                                visualDensity: VisualDensity.compact,
+                                icon: Icon(
+                                  saved ? Icons.bookmark : Icons.bookmark_outline,
+                                ),
+                                onPressed: () =>
+                                    SaveService.toggleSave(product.id),
+                              ),
+                            );
+                          },
+                        ),
+                      ] else ...[
+                        _Metric(
+                          icon: Icons.arrow_upward_rounded,
+                          value: product.upvotes,
+                        ),
+                        _Metric(
+                          icon: Icons.mode_comment_outlined,
+                          value: product.comments,
+                        ),
+                        _Metric(icon: Icons.share_outlined, value: product.shares),
+                        Container(
                           margin: const EdgeInsets.symmetric(horizontal: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
                             color: cs.surfaceContainerHigh,
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(color: cs.outlineVariant),
                           ),
-                          child: IconButton(
-                            tooltip: saved ? 'Saved' : 'Save',
-                            visualDensity: VisualDensity.compact,
-                            icon: Icon(
-                              saved ? Icons.bookmark : Icons.bookmark_outline,
-                            ),
-                            onPressed: () => SaveService.toggleSave(product.id),
-                          ),
-                        );
-                      },
-                    ),
-                  ] else ...[
-                    _Metric(
-                      icon: Icons.arrow_upward_rounded,
-                      value: product.upvotes,
-                    ),
-                    _Metric(
-                      icon: Icons.mode_comment_outlined,
-                      value: product.comments,
-                    ),
-                    _Metric(icon: Icons.share_outlined, value: product.shares),
-                    Container(
-                      margin: const EdgeInsets.symmetric(horizontal: 6),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: cs.surfaceContainerHigh,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: cs.outlineVariant),
-                      ),
-                      child: const Icon(Icons.bookmark_outline, size: 20),
-                    ),
-                  ],
+                          child: const Icon(Icons.bookmark_outline, size: 20),
+                        ),
+                      ],
 
-                  const Spacer(),
-                  IconButton(
-                    visualDensity: VisualDensity.compact,
-                    onPressed: widget.product.onMorePressed,
-                    icon: const Icon(Icons.more_horiz_rounded),
+                      const Spacer(),
+
+                      // Views counter
+                      Icon(Icons.visibility, size: 16, color: cs.onSurfaceVariant),
+                      const SizedBox(width: 4),
+                      _isSkeleton
+                          ? _skeletonLine(context, width: 24, height: 10)
+                          : StreamBuilder<int>(
+                              stream: ViewService.viewsStream(product.id),
+                              builder: (_, s) {
+                                final val = s.data ?? product.views;
+                                return Text(
+                                  '$val',
+                                  style: TextStyle(
+                                    color: cs.onSurfaceVariant,
+                                    fontSize: 12,
+                                  ),
+                                );
+                              },
+                            ),
+
+                      const SizedBox(width: 12),
+
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        onPressed: widget.product.onMorePressed,
+                        icon: const Icon(Icons.more_horiz_rounded),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
           ],
         ),
-=======
-
-                    const SizedBox(width: 12),
-
-                    IconButton(
-                      visualDensity: VisualDensity.compact,
-                      onPressed: widget.product.onMorePressed,
-                      icon: const Icon(Icons.more_horiz_rounded),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
->>>>>>> Stashed changes
       ),
     );
   }
