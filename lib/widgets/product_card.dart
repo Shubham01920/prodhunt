@@ -1,3 +1,4 @@
+// lib/widgets/product_card.dart
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:prodhunt/pages/product_details_page.dart';
@@ -15,7 +16,7 @@ class ProductCard extends StatefulWidget {
   final ProductUI product;
 
   const ProductCard.skeleton({super.key})
-    : product = const ProductUI.skeleton();
+      : product = const ProductUI.skeleton();
 
   @override
   State<ProductCard> createState() => _ProductCardState();
@@ -24,7 +25,7 @@ class ProductCard extends StatefulWidget {
 class _ProductCardState extends State<ProductCard> {
   bool _viewRegistered = false;
 
-  // Helper: Check if loading
+  // Helper: Check if loading / skeleton
   bool get _isLoading => widget.product.isSkeleton || widget.product.id.isEmpty;
 
   Future<void> _registerView() async {
@@ -33,7 +34,7 @@ class _ProductCardState extends State<ProductCard> {
     await ViewService.registerView(widget.product.id);
   }
 
-  // ✅ FIX: Safe Share Function
+  // Safe share function
   void _shareProduct(BuildContext ctx) {
     if (_isLoading) return;
 
@@ -101,7 +102,6 @@ class _ProductCardState extends State<ProductCard> {
                         horizontal: 8,
                         vertical: 8,
                       ),
-                      // ✅ Pass isAI
                       child: CommentWidget(
                         productId: widget.product.id,
                         isAI: widget.product.isAI,
@@ -112,7 +112,7 @@ class _ProductCardState extends State<ProductCard> {
 
                 const Divider(height: 1),
 
-                // ⭐ FIX: Pass isAI to Composer so it saves in correct collection
+                // Comment composer (keeps behavior, accepts isAI)
                 _CommentComposer(
                   productId: widget.product.id,
                   isAI: widget.product.isAI,
@@ -166,16 +166,13 @@ class _ProductCardState extends State<ProductCard> {
               GestureDetector(
                 onTap: onTapCard,
                 child: Container(
+                  margin: const EdgeInsets.only(left: 20, right: 20, top: 20),
                   height: 220,
                   width: double.infinity,
                   decoration: BoxDecoration(
                     color: Colors.grey[200],
-                    borderRadius: const BorderRadius.vertical(
-                      top: Radius.circular(12),
-                    ),
-                    image:
-                        (product.coverUrl != null &&
-                            product.coverUrl!.isNotEmpty)
+                    borderRadius: BorderRadius.circular(3),
+                    image: (product.coverUrl != null && product.coverUrl!.isNotEmpty)
                         ? DecorationImage(
                             image: NetworkImage(product.coverUrl!),
                             fit: BoxFit.cover,
@@ -200,10 +197,7 @@ class _ProductCardState extends State<ProductCard> {
                   top: 16,
                   left: 16,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 4,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: Colors.black.withOpacity(0.6),
                       borderRadius: BorderRadius.circular(6),
@@ -221,8 +215,8 @@ class _ProductCardState extends State<ProductCard> {
 
               // BOOKMARK BUTTON
               Positioned(
-                top: 16,
-                right: 16,
+                top: 40,
+                right: 40,
                 child: _isLoading
                     ? _staticIconBox(Icons.bookmark_outline)
                     : StreamBuilder<bool>(
@@ -236,10 +230,10 @@ class _ProductCardState extends State<ProductCard> {
                             ),
                             child: Container(
                               height: 36,
-                              width: 36,
+                              width: 40,
                               decoration: BoxDecoration(
                                 color: Colors.white.withOpacity(0.9),
-                                borderRadius: BorderRadius.circular(8),
+                                borderRadius: BorderRadius.circular(2),
                                 boxShadow: [
                                   BoxShadow(
                                     color: Colors.black.withOpacity(0.1),
@@ -332,19 +326,13 @@ class _ProductCardState extends State<ProductCard> {
                     _isLoading
                         ? _skeletonLine(width: 80, height: 24)
                         : Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 8,
-                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                             decoration: BoxDecoration(
                               color: Colors.grey[100],
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
-                              (product.tags.isNotEmpty
-                                      ? product.tags.first
-                                      : product.category)
-                                  .toUpperCase(),
+                              (product.tags.isNotEmpty ? product.tags.first : product.category).toUpperCase(),
                               style: TextStyle(
                                 color: Colors.grey[800],
                                 fontSize: 11,
@@ -356,10 +344,10 @@ class _ProductCardState extends State<ProductCard> {
                     // Actions
                     Row(
                       children: [
-                        // Share
+                        // Share (uses builder so we can get context)
                         Builder(
                           builder: (ctx) => _buildSquareButton(
-                            icon: Icons.share_outlined,
+                            image: const AssetImage("assets/images/Forward.png"),
                             label: "Share",
                             onTap: () => _shareProduct(ctx),
                           ),
@@ -367,14 +355,11 @@ class _ProductCardState extends State<ProductCard> {
 
                         const SizedBox(width: 8),
 
-                        // Comments
+                        // Comments (live) - uses existing CommentService stream
                         _isLoading
                             ? _staticIconBox(Icons.chat_bubble_outline)
                             : _MetricLive(
-                                stream: CommentService.getCommentCount(
-                                  product.id,
-                                  isAI: product.isAI,
-                                ),
+                                stream: CommentService.getCommentCount(product.id, isAI: product.isAI),
                                 fallback: product.comments,
                                 icon: Icons.chat_bubble_outline,
                                 onTap: () => _openCommentsSheet(context),
@@ -382,37 +367,26 @@ class _ProductCardState extends State<ProductCard> {
 
                         const SizedBox(width: 8),
 
-                        // Upvote
+                        // Upvote (live)
                         _isLoading
                             ? _buildSquareButton(
-                                icon: Icons.arrow_upward_outlined,
+                                image: const AssetImage("assets/images/Play.png"),
                                 label: "0",
                                 onTap: () {},
                               )
                             : StreamBuilder<int>(
-                                stream: UpvoteService.getUpvoteCountStream(
-                                  product.id,
-                                  isAI: product.isAI,
-                                ),
+                                stream: UpvoteService.getUpvoteCountStream(product.id, isAI: product.isAI),
                                 builder: (context, snap) {
                                   final count = snap.data ?? product.upvotes;
                                   return StreamBuilder<bool>(
-                                    stream: UpvoteService.isUpvotedStream(
-                                      product.id,
-                                      isAI: product.isAI,
-                                    ),
+                                    stream: UpvoteService.isUpvotedStream(product.id, isAI: product.isAI),
                                     builder: (context, userSnap) {
                                       final isUpvoted = userSnap.data ?? false;
                                       return _buildSquareButton(
-                                        icon: isUpvoted
-                                            ? Icons.arrow_upward
-                                            : Icons.arrow_upward_outlined,
+                                        icon: isUpvoted ? Icons.arrow_upward : Icons.arrow_upward_outlined,
                                         label: "$count",
                                         isActive: isUpvoted,
-                                        onTap: () => UpvoteService.toggleUpvote(
-                                          product.id,
-                                          isAI: product.isAI,
-                                        ),
+                                        onTap: () => UpvoteService.toggleUpvote(product.id, isAI: product.isAI),
                                       );
                                     },
                                   );
@@ -430,8 +404,7 @@ class _ProductCardState extends State<ProductCard> {
     );
   }
 
-  // --- Helpers ---
-
+  // small helper for static icons
   Widget _staticIconBox(IconData icon) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -475,9 +448,7 @@ class _ProductCardState extends State<ProductCard> {
       );
     }
     return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-      stream: FirebaseService.usersRef
-          .doc(widget.product.creatorId)
-          .snapshots(),
+      stream: FirebaseService.usersRef.doc(widget.product.creatorId).snapshots(),
       builder: (context, snap) {
         String url = '';
         if (snap.hasData && snap.data!.exists) {
@@ -489,10 +460,7 @@ class _ProductCardState extends State<ProductCard> {
             height: 24,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(6),
-              image: DecorationImage(
-                image: NetworkImage(url),
-                fit: BoxFit.cover,
-              ),
+              image: DecorationImage(image: NetworkImage(url), fit: BoxFit.cover),
             ),
           );
         }
@@ -508,36 +476,38 @@ class _ProductCardState extends State<ProductCard> {
     );
   }
 
+  // ----------------- UPDATED BUTTON: small rounded card with icon above number -----------------
   Widget _buildSquareButton({
-    required IconData icon,
+    IconData? icon,
+    ImageProvider? image,
     required String label,
     required VoidCallback onTap,
-    bool isActive = false,
+    bool isActive = false
   }) {
+    final cs = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        width: 56,
+        height: 64,
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         decoration: BoxDecoration(
-          color: isActive ? Colors.orange.withOpacity(0.1) : Colors.grey[100],
-          borderRadius: BorderRadius.circular(6),
-          border: isActive ? Border.all(color: Colors.deepOrange) : null,
+          color: isActive ? Colors.orange.withOpacity(0.12) : Colors.grey[100],
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: isActive ? Colors.orange.withOpacity(0.9) : Colors.grey.shade100),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 6, offset: const Offset(0, 2))],
         ),
-        child: Row(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              size: 16,
-              color: isActive ? Colors.deepOrange : Colors.black54,
-            ),
-            const SizedBox(width: 4),
+            if (image != null)
+              Image(image: image, width: 20, height: 20, color: isActive ? Colors.deepOrange : Colors.black54)
+            else
+              Icon(icon, size: 18, color: isActive ? Colors.deepOrange : Colors.black54),
+            const SizedBox(height: 6),
             Text(
               label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: isActive ? Colors.deepOrange : Colors.black54,
-              ),
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: isActive ? Colors.deepOrange : Colors.black87),
             ),
           ],
         ),
@@ -549,62 +519,62 @@ class _ProductCardState extends State<ProductCard> {
     return Container(
       width: width,
       height: height,
-      decoration: BoxDecoration(
-        color: Colors.grey[300],
-        borderRadius: BorderRadius.circular(4),
-      ),
+      decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(4)),
     );
   }
 }
 
-// Metric Live (Fixed)
+/* ---------------- Top-level helper widgets (moved out of state to avoid nested classes) ---------------- */
+
+// Live metric box that listens to stream and shows small card (clickable if onTap provided)
 class _MetricLive extends StatelessWidget {
   final Stream<int> stream;
   final int fallback;
   final IconData icon;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+
   const _MetricLive({
     required this.stream,
     required this.fallback,
     required this.icon,
-    required this.onTap,
+    this.onTap,
   });
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<int>(
       stream: stream,
       builder: (context, snap) {
         final count = snap.data ?? fallback;
-        return GestureDetector(
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.grey[100],
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Row(
-              children: [
-                Icon(icon, size: 16, color: Colors.black54),
-                const SizedBox(width: 4),
-                Text(
-                  "$count",
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black54,
-                  ),
-                ),
-              ],
-            ),
+        final cs = Theme.of(context).colorScheme;
+        final child = Container(
+          width: 56,
+          height: 64,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.grey[100],
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(color: Colors.grey.shade100),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 18, color: Colors.black54),
+              const SizedBox(height: 6),
+              Text('$count', style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700)),
+            ],
           ),
         );
+
+        if (onTap == null) return child;
+        return GestureDetector(onTap: onTap, child: child);
       },
     );
   }
 }
 
-// ✅ FIXED: Comment Composer now accepts isAI
+/* ---------------- Comment composer (kept behavior identical) ---------------- */
+
 class _CommentComposer extends StatefulWidget {
   const _CommentComposer({required this.productId, this.isAI = false});
   final String productId;
@@ -622,12 +592,17 @@ class _CommentComposerState extends State<_CommentComposer> {
     final text = _controller.text.trim();
     if (text.isEmpty) return;
     setState(() => _posting = true);
-    // ✅ PASSING IS AI
     await CommentService.addComment(widget.productId, text, isAI: widget.isAI);
     if (!mounted) return;
     _controller.clear();
     setState(() => _posting = false);
     FocusScope.of(context).unfocus();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
 
   @override
@@ -648,28 +623,15 @@ class _CommentComposerState extends State<_CommentComposer> {
                   hintText: 'Write a comment...',
                   filled: true,
                   fillColor: cs.surfaceContainerHigh,
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                 ),
               ),
             ),
             const SizedBox(width: 8),
             _posting
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : IconButton(
-                    onPressed: _post,
-                    icon: const Icon(Icons.send_rounded),
-                  ),
+                ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+                : IconButton(onPressed: _post, icon: const Icon(Icons.send_rounded)),
           ],
         ),
       ),

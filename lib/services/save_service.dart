@@ -6,7 +6,7 @@ class SaveService {
       FirebaseService.usersRef.doc(uid).collection('saves');
 
   /// Toggle save/unsave for the current user. Returns true if now saved.
-  static Future<bool> toggleSave(String productId) async {
+  static Future<bool> toggleSave(String productId, {required bool isAI}) async {
     final uid = FirebaseService.currentUserId;
     if (uid == null) return false;
 

@@ -5,12 +5,19 @@ import 'package:prodhunt/services/firebase_service.dart';
 
 class CommentWidget extends StatelessWidget {
   final String productId;
-  const CommentWidget({super.key, required this.productId});
+  final bool isAI; // ⭐ Added isAI
+
+  const CommentWidget({
+    super.key,
+    required this.productId,
+    this.isAI = false, // Default false
+  });
 
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<CommentModel>>(
-      stream: CommentService.getProductComments(productId),
+      // ✅ Pass isAI to fetch from correct collection
+      stream: CommentService.getProductComments(productId, isAI: isAI),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -39,14 +46,21 @@ class CommentWidget extends StatelessWidget {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _CommentTile(productId: productId, comment: comment),
+                _CommentTile(
+                  productId: productId,
+                  comment: comment,
+                  isAI: isAI, // ✅ Pass down
+                ),
+
                 // Replies (indented)
                 Padding(
                   padding: const EdgeInsets.only(left: 48),
                   child: StreamBuilder<List<CommentModel>>(
+                    // ✅ Pass isAI to fetch replies
                     stream: CommentService.getCommentReplies(
                       productId,
                       comment.commentId,
+                      isAI: isAI,
                     ),
                     builder: (context, replySnap) {
                       final replies = replySnap.data ?? [];
@@ -59,6 +73,7 @@ class CommentWidget extends StatelessWidget {
                                 productId: productId,
                                 comment: r,
                                 isReply: true,
+                                isAI: isAI, // ✅ Pass down
                               ),
                             )
                             .toList(),
@@ -79,11 +94,13 @@ class _CommentTile extends StatelessWidget {
   final String productId;
   final CommentModel comment;
   final bool isReply;
+  final bool isAI; // ⭐ Added isAI
 
   const _CommentTile({
     required this.productId,
     required this.comment,
     this.isReply = false,
+    required this.isAI, // Required
   });
 
   String _safe(dynamic v) => (v ?? '').toString();
@@ -153,7 +170,7 @@ class _CommentTile extends StatelessWidget {
     );
   }
 
-  /* ---------------- Dialogs ---------------- */
+  /* ---------------- Dialogs (Now AI Aware) ---------------- */
 
   void _showReplyDialog(
     BuildContext context,
@@ -180,10 +197,12 @@ class _CommentTile extends StatelessWidget {
             onPressed: () async {
               final text = controller.text.trim();
               if (text.isNotEmpty) {
+                // ✅ Pass isAI
                 await CommentService.addComment(
                   productId,
                   text,
                   parentCommentId: parentCommentId,
+                  isAI: isAI,
                 );
               }
               Navigator.pop(context);
@@ -220,10 +239,12 @@ class _CommentTile extends StatelessWidget {
             onPressed: () async {
               final newContent = controller.text.trim();
               if (newContent.isNotEmpty) {
+                // ✅ Pass isAI
                 await CommentService.updateComment(
                   productId,
                   comment.commentId,
                   newContent,
+                  isAI: isAI,
                 );
               }
               Navigator.pop(context);
@@ -252,7 +273,12 @@ class _CommentTile extends StatelessWidget {
           ),
           ElevatedButton(
             onPressed: () async {
-              await CommentService.deleteComment(productId, commentId);
+              // ✅ Pass isAI
+              await CommentService.deleteComment(
+                productId,
+                commentId,
+                isAI: isAI,
+              );
               Navigator.pop(context);
             },
             child: const Text('Delete'),
